@@ -20,6 +20,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lamb
 # ─── Applications ────────────────────────────────────────────────────────────
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -159,6 +160,98 @@ CELERY_BROKER_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+
+# ─── Jazzmin Admin Theme ─────────────────────────────────────────────────────
+
+JAZZMIN_SETTINGS = {
+    'site_title': 'GrowthPath Admin',
+    'site_header': 'GrowthPath',
+    'site_brand': 'GrowthPath',
+    'site_logo': None,
+    'site_icon': None,
+    'welcome_sign': 'Welcome to the GrowthPath Admin Panel',
+    'copyright': 'GrowthPath',
+    'search_model': ['accounts.User', 'goals.Goal'],
+    'user_avatar': 'avatar',
+
+    'topmenu_links': [
+        {'name': 'Dashboard', 'url': '/goals/', 'new_window': False, 'icon': 'fas fa-home'},
+        {'name': 'View Site', 'url': '/', 'new_window': True, 'icon': 'fas fa-globe'},
+    ],
+
+    'usermenu_links': [
+        {'name': 'View Site', 'url': '/goals/', 'new_window': False, 'icon': 'fas fa-home'},
+    ],
+
+    'show_sidebar': True,
+    'navigation_expanded': True,
+
+    'order_with_respect_to': [
+        'accounts', 'goals', 'skills', 'activities', 'recommendations', 'priorities',
+    ],
+
+    'icons': {
+        'auth': 'fas fa-users-cog',
+        'accounts.user': 'fas fa-user-graduate',
+        'accounts.achievement': 'fas fa-trophy',
+        'goals.goal': 'fas fa-bullseye',
+        'goals.milestone': 'fas fa-flag-checkered',
+        'skills.skilldomain': 'fas fa-layer-group',
+        'skills.userskill': 'fas fa-brain',
+        'skills.skillscorehistory': 'fas fa-chart-line',
+        'activities.activitylog': 'fas fa-calendar-check',
+        'activities.productivitysnapshot': 'fas fa-chart-bar',
+        'recommendations.recommendation': 'fas fa-lightbulb',
+        'priorities.priority': 'fas fa-sort-amount-down',
+    },
+
+    'default_icon_parents': 'fas fa-folder',
+    'default_icon_children': 'fas fa-circle',
+
+    'related_modal_active': True,
+    'custom_css': None,
+    'custom_js': None,
+    'use_google_fonts_cdn': False,
+    'show_ui_builder': False,
+
+    'changeform_format': 'horizontal_tabs',
+    'changeform_format_overrides': {
+        'accounts.user': 'collapsible',
+        'goals.goal': 'horizontal_tabs',
+    },
+}
+
+JAZZMIN_UI_TWEAKS = {
+    'navbar_small_text': False,
+    'footer_small_text': False,
+    'body_small_text': False,
+    'brand_small_text': False,
+    'brand_colour': 'navbar-purple',
+    'accent': 'accent-purple',
+    'navbar': 'navbar-dark',
+    'no_navbar_border': True,
+    'navbar_fixed': True,
+    'layout_boxed': False,
+    'footer_fixed': False,
+    'sidebar_fixed': True,
+    'sidebar': 'sidebar-dark-purple',
+    'sidebar_nav_small_text': False,
+    'sidebar_disable_expand': False,
+    'sidebar_nav_child_indent': True,
+    'sidebar_nav_compact_style': False,
+    'sidebar_nav_legacy_style': False,
+    'sidebar_nav_flat_style': False,
+    'theme': 'darkly',
+    'dark_mode_theme': 'darkly',
+    'button_classes': {
+        'primary': 'btn-primary',
+        'secondary': 'btn-secondary',
+        'info': 'btn-info',
+        'warning': 'btn-warning',
+        'danger': 'btn-danger',
+        'success': 'btn-success',
+    },
+}
 
 # ─── ML Engine Config ────────────────────────────────────────────────────────
 
