@@ -5,10 +5,16 @@
 <a href="{% url 'goals:list' %}" class="gp-nav-link {% if active_nav == 'goals' %}active{% endif %}">
   <i class="ti ti-target"></i> Goals
 </a>
+<a href="{% url 'activities:log' %}" class="gp-nav-link {% if active_nav == 'activities' %}active{% endif %}">
+  <i class="ti ti-activity"></i> Activity Log
+</a>
+<div class="gp-nav-section">Growth</div>
+<a href="{% url 'skills:list' %}" class="gp-nav-link {% if active_nav == 'skills' %}active{% endif %}">
+  <i class="ti ti-brain"></i> Skills
+</a>
 <a href="{% url 'priorities:list' %}" class="gp-nav-link {% if active_nav == 'priorities' %}active{% endif %}">
   <i class="ti ti-sort-descending"></i> Priorities
 </a>
-<div class="gp-nav-section">Insights</div>
 <a href="{% url 'recommendations:list' %}" class="gp-nav-link {% if active_nav == 'recs' %}active{% endif %}">
   <i class="ti ti-bulb"></i> Recommendations
 </a>

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Activity Log — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="activities" %}
+
+<div class="section-title">Activity Log</div>
+
+<!-- Quick-add form -->
+<div class="gp-card mb-3">
+  <div class="gp-card-title"><i class="ti ti-plus"></i> Log an activity</div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="gp-form-label">What did you do? <span style="color:var(--gp-purple)">*</span></label>
+      <input type="text" name="title" class="gp-form-control" placeholder="e.g. Studied Chapter 4 of Data Structures" required>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="gp-form-label">Type</label>
+        <select name="activity_type" class="gp-form-control">
+          {% for val, label in activity_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="gp-form-label">Duration (mins)</label>
+        <input type="number" name="duration_minutes" class="gp-form-control" value="30" min="1" max="720">
+      </div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="gp-form-label">Productivity</label>
+        <select name="productivity_score" class="gp-form-control">
+          <option value="5">5 — Highly productive</option>
+          <option value="4">4 — Productive</option>
+          <option value="3" selected>3 — Neutral</option>
+          <option value="2">2 — Unproductive</option>
+          <option value="1">1 — Very unproductive</option>
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="gp-form-label">Focus level</label>
+        <select name="focus_level" class="gp-form-control">
+          <option value="5">5 — Deep focus</option>
+          <option value="4">4 — Focused</option>
+          <option value="3" selected>3 — Moderate</option>
+          <option value="2">2 — Distracted</option>
+          <option value="1">1 — Very distracted</option>
+        </select>
+      </div>
+    </div>
+    {% if active_goals %}
+    <div class="mb-3">
+      <label class="gp-form-label">Linked goal (optional)</label>
+      <select name="goal_id" class="gp-form-control">
+        <option value="">— None —</option>
+        {% for g in active_goals %}
+        <option value="{{ g.pk }}">{{ g.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="mb-3">
+      <label class="gp-form-label">Outcome notes</label>
+      <input type="text" name="outcome_notes" class="gp-form-control" placeholder="What did you achieve or learn?">
+    </div>
+    <button type="submit" class="btn btn-primary rounded-pill px-4">Log activity</button>
+  </form>
+</div>
+
+<!-- 52-week heatmap -->
+<div class="gp-card mb-3">
+  <div class="gp-card-title"><i class="ti ti-calendar-stats"></i> 52-week activity heatmap</div>
+  <div style="overflow-x:auto;padding-bottom:4px">
+    <div style="display:flex;gap:3px;min-width:max-content">
+      {% for week in calendar_weeks %}
+      <div style="display:flex;flex-direction:column;gap:3px">
+        {% for day in week %}
+        <div class="heatmap-cell"
+             data-score="{{ day.score }}"
+             data-date="{{ day.date }}"
+             data-future="{{ day.future|yesno:'true,false' }}"
+             title="{{ day.date }}{% if day.score %} — productivity {{ day.score }}/5{% elif not day.future %} — no activity{% endif %}"
+             style="width:12px;height:12px;border-radius:2px;
+               background:{% if day.future %}transparent{% elif day.score == 0 %}var(--gp-border){% elif day.score < 2 %}var(--gp-purple-dim){% elif day.score < 3.5 %}rgba(168,85,247,.35){% elif day.score < 4.5 %}rgba(168,85,247,.65){% else %}var(--gp-purple){% endif %}">
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2 mt-2" style="font-size:10px;color:var(--gp-text-muted)">
+    <span>Less active</span>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-border)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-purple-dim)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:rgba(168,85,247,.35)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:rgba(168,85,247,.65)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-purple)"></div>
+    <span>Most active</span>
+  </div>
+</div>
+
+<!-- Recent activity grouped by date -->
+{% if grouped_logs %}
+<div class="section-title" style="font-size:15px">Recent Activity (30 days)</div>
+{% for group in grouped_logs %}
+<div class="text-muted-sm fw-600 mb-1 mt-2" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+  {{ group.date|date:"l, d M Y" }}
+</div>
+{% for log in group.logs %}
+<div class="gp-card mb-2 py-2 px-3">
+  <div class="d-flex align-items-center gap-3">
+    <div class="gp-rec-icon" style="background:var(--gp-purple-dim);color:var(--gp-purple);width:36px;height:36px;font-size:16px">
+      <i class="ti {{ activity_type_icons|default_if_none:'ti-dots'}}"></i>
+    </div>
+    <div style="flex:1">
+      <div class="fw-600" style="font-size:13px">{{ log.title }}</div>
+      <div class="text-muted-sm">{{ log.get_activity_type_display }} · {{ log.duration_minutes }} min
+        {% if log.goal %} · <span style="color:var(--gp-purple)">{{ log.goal.title|truncatechars:30 }}</span>{% endif %}
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:13px;font-weight:600">
+        {% for i in "12345" %}{% if forloop.counter <= log.productivity_score %}<span style="color:var(--gp-amber)">★</span>{% else %}<span style="color:var(--gp-border)">★</span>{% endif %}{% endfor %}
+      </div>
+      <div class="text-muted-sm" style="font-size:10px">{{ log.started_at|date:"H:i" }}</div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endfor %}
+{% else %}
+<div class="gp-card text-center py-4">
+  <i class="ti ti-activity" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
+  <div class="fw-600 mb-1">No activity logged yet</div>
+  <div class="text-muted-sm">Use the form above to start tracking your study sessions and tasks.</div>
+</div>
+{% endif %}
+
+{% endwith %}
+{% endblock %}

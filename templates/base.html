@@ -372,16 +372,16 @@
   <!-- Mobile bottom nav -->
   <nav class="gp-bottom-nav d-md-none" aria-label="Main navigation">
     <a href="{% url 'goals:dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">
-      <i class="ti ti-home"></i><span>Dashboard</span>
+      <i class="ti ti-home"></i><span>Home</span>
     </a>
     <a href="{% url 'goals:list' %}" class="{% if active_nav == 'goals' %}active{% endif %}">
       <i class="ti ti-target"></i><span>Goals</span>
     </a>
-    <a href="{% url 'priorities:list' %}" class="{% if active_nav == 'priorities' %}active{% endif %}">
-      <i class="ti ti-sort-descending"></i><span>Priorities</span>
+    <a href="{% url 'activities:log' %}" class="{% if active_nav == 'activities' %}active{% endif %}">
+      <i class="ti ti-activity"></i><span>Log</span>
     </a>
-    <a href="{% url 'recommendations:list' %}" class="{% if active_nav == 'recs' %}active{% endif %}">
-      <i class="ti ti-bulb"></i><span>Insights</span>
+    <a href="{% url 'skills:list' %}" class="{% if active_nav == 'skills' %}active{% endif %}">
+      <i class="ti ti-brain"></i><span>Skills</span>
     </a>
     <a href="{% url 'accounts:profile' %}" class="{% if active_nav == 'profile' %}active{% endif %}">
       <i class="ti ti-user"></i><span>Profile</span>

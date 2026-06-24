@@ -4,9 +4,9 @@
 {% block content %}
 {% with active_nav="dashboard" %}
 
-<!-- Hero -->
+<!-- Hero + PGI -->
 <div class="gp-hero mb-3">
-  <div style="font-size:12px;opacity:.7">Welcome back 👋</div>
+  <div style="font-size:12px;opacity:.7">Welcome back</div>
   <div style="font-size:22px;font-weight:700;margin:4px 0">{{ request.user.display_name }}</div>
   <div class="gp-hero-stats">
     <div class="gp-hero-stat">
@@ -24,32 +24,63 @@
   </div>
 </div>
 
-<!-- Stat grid -->
+<!-- PGI widget + stat grid -->
 <div class="row g-2 mb-3">
-  <div class="col-6">
-    <div class="gp-stat">
-      <div class="gp-stat-label"><i class="ti ti-target" style="font-size:12px"></i> Goals on track</div>
-      <div class="gp-stat-value" style="color:var(--gp-green)">{{ on_track_count }}</div>
-      <div class="gp-stat-sub">of {{ active_goals_count }} active</div>
+  <div class="col-12">
+    <div class="gp-card" style="background:linear-gradient(135deg,var(--gp-purple-dim),var(--gp-surface))">
+      <div class="d-flex align-items-center gap-3">
+        <div style="position:relative;width:80px;height:80px;flex-shrink:0">
+          <canvas id="pgiChart" width="80" height="80"></canvas>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+            <span style="font-size:20px;font-weight:800;color:{% if pgi_score >= 70 %}var(--gp-green){% elif pgi_score >= 40 %}var(--gp-amber){% else %}var(--gp-red){% endif %}">{{ pgi_score }}</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--gp-text)">Personal Growth Index</div>
+          <div class="text-muted-sm">Composite of skills, goals, consistency &amp; engagement</div>
+          <div class="mt-1">
+            {% if pgi_score >= 70 %}<span class="gp-badge gp-badge-green">Strong</span>
+            {% elif pgi_score >= 40 %}<span class="gp-badge gp-badge-amber">Building</span>
+            {% else %}<span class="gp-badge gp-badge-red">Getting started</span>{% endif %}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="col-6">
     <div class="gp-stat">
-      <div class="gp-stat-label"><i class="ti ti-brain" style="font-size:12px"></i> Skills tracked</div>
+      <div class="gp-stat-label"><i class="ti ti-target" style="font-size:12px"></i> On track</div>
+      <div class="gp-stat-value" style="color:var(--gp-green)">{{ on_track_count }}</div>
+      <div class="gp-stat-sub">of {{ active_goals_count }} goals</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="gp-stat">
+      <div class="gp-stat-label"><i class="ti ti-brain" style="font-size:12px"></i> Skills</div>
       <div class="gp-stat-value" style="color:var(--gp-purple)">{{ skills_count }}</div>
-      <div class="gp-stat-sub">across domains</div>
+      <div class="gp-stat-sub">being tracked</div>
     </div>
   </div>
 </div>
+
+<!-- Skills radar -->
+{% if skills %}
+<div class="gp-card mb-3">
+  <div class="gp-card-title"><i class="ti ti-chart-radar"></i> Skills overview
+    <a href="{% url 'skills:list' %}" style="font-size:11px;color:var(--gp-purple);text-decoration:none;margin-left:auto">View all →</a>
+  </div>
+  <div style="position:relative;height:220px;max-width:320px;margin:0 auto">
+    <canvas id="radarChart"></canvas>
+  </div>
+</div>
+{% endif %}
 
 <!-- Trend chart -->
 {% if trend_data %}
 <div class="gp-card mb-3">
   <div class="gp-card-title"><i class="ti ti-chart-line"></i> Productivity trend (7 days)</div>
-  <div style="position:relative;height:160px">
-    <canvas id="trendChart" role="img" aria-label="Weekly productivity trend chart">
-      Productivity scores for the past 7 days.
-    </canvas>
+  <div style="position:relative;height:140px">
+    <canvas id="trendChart"></canvas>
   </div>
 </div>
 {% endif %}
@@ -61,18 +92,23 @@
     <a href="{% url 'priorities:list' %}" style="font-size:12px;color:var(--gp-purple);text-decoration:none">View all →</a>
   </div>
   {% for item in top_priorities %}
-  <div class="gp-priority-item">
-    <div class="gp-rank">{{ item.rank }}</div>
-    <div style="flex:1">
-      <div class="fw-600" style="font-size:13px">{{ item.title }}</div>
-      <div class="text-muted-sm">Due: {{ item.target_date|date:"d M" }} ·
-        <span class="gp-badge {% if item.urgency_label == 'Critical' %}gp-badge-red{% elif item.urgency_label == 'High' %}gp-badge-amber{% else %}gp-badge-blue{% endif %}">
-          {{ item.urgency_label }}
-        </span>
+  <a href="{% url 'goals:detail' item.goal_id %}" style="text-decoration:none">
+    <div class="gp-priority-item">
+      <div class="gp-rank">{{ item.rank }}</div>
+      <div style="flex:1">
+        <div class="fw-600" style="font-size:13px;color:var(--gp-text)">{{ item.title }}</div>
+        <div class="text-muted-sm">Due {{ item.target_date|date:"d M" }} ·
+          <span class="gp-badge {% if item.urgency_label == 'Critical' %}gp-badge-red{% elif item.urgency_label == 'High' %}gp-badge-amber{% else %}gp-badge-blue{% endif %}">
+            {{ item.urgency_label }}
+          </span>
+        </div>
+        <div class="gp-progress-bar mt-1" style="height:4px">
+          <div class="gp-progress-fill" style="width:{{ item.current_progress }}%"></div>
+        </div>
       </div>
+      <div class="gp-priority-score">{{ item.composite_score }}<small>/ 100</small></div>
     </div>
-    <div class="gp-priority-score">{{ item.composite_score }}<small>/ 100</small></div>
-  </div>
+  </a>
   {% empty %}
   <div class="text-center py-3 text-muted-sm">
     <i class="ti ti-check-circle" style="font-size:28px;display:block;margin-bottom:6px;color:var(--gp-border)"></i>
@@ -81,15 +117,30 @@
   {% endfor %}
 </div>
 
+<!-- Productivity heatmap -->
+<div class="gp-card mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="gp-card-title mb-0"><i class="ti ti-calendar-stats"></i> Activity heatmap (12 weeks)</div>
+    <a href="{% url 'activities:log' %}" style="font-size:12px;color:var(--gp-purple);text-decoration:none">Log activity →</a>
+  </div>
+  <div id="heatmap-grid" style="display:flex;gap:3px;overflow-x:auto;padding-bottom:4px"></div>
+  <div class="d-flex align-items-center gap-2 mt-2" style="font-size:10px;color:var(--gp-text-muted)">
+    <span>Less</span>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-border)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-purple-dim)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:rgba(168,85,247,.4)"></div>
+    <div style="width:10px;height:10px;border-radius:2px;background:var(--gp-purple)"></div>
+    <span>More</span>
+  </div>
+</div>
+
 <!-- AI Recommendation teaser -->
 {% if top_rec %}
 <div class="gp-card mb-3" style="border-left:3px solid var(--gp-purple)">
   <div class="gp-card-title"><i class="ti ti-bulb"></i> Top recommendation</div>
   <div class="fw-600 mb-1" style="font-size:14px;color:var(--gp-purple)">{{ top_rec.title }}</div>
   <div class="text-muted-sm mb-2">{{ top_rec.description|truncatechars:140 }}</div>
-  <a href="{% url 'recommendations:list' %}" class="btn btn-sm btn-primary rounded-pill">
-    View all insights →
-  </a>
+  <a href="{% url 'recommendations:list' %}" class="btn btn-sm btn-primary rounded-pill">View all insights →</a>
 </div>
 {% else %}
 <div class="gp-card mb-3">
@@ -105,14 +156,85 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if trend_data %}
 <script>
+// ── PGI doughnut ──────────────────────────────────────────────────────────────
+(function() {
+  var score = {{ pgi_score }};
+  var color = score >= 70 ? '#22C55E' : score >= 40 ? '#F59E0B' : '#EF4444';
+  new Chart(document.getElementById('pgiChart'), {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [score, 100 - score],
+        backgroundColor: [color, 'rgba(42,42,61,0.4)'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      cutout: '72%', responsive: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      animation: { duration: 800 },
+    }
+  });
+})();
+
+// ── Radar chart ───────────────────────────────────────────────────────────────
+{% if skills %}
+(function() {
+  var labels  = {{ radar_labels|safe }};
+  var current = {{ radar_current|safe }};
+  var target  = {{ radar_target|safe }};
+  var isDark  = document.documentElement.getAttribute('data-theme') !== 'light';
+  var gridCol = isDark ? 'rgba(42,42,61,0.9)' : 'rgba(228,223,255,0.9)';
+  var tickCol = isDark ? '#6B7280' : '#9CA3AF';
+  new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Current',
+          data: current,
+          borderColor: '#A855F7',
+          backgroundColor: 'rgba(168,85,247,0.15)',
+          pointBackgroundColor: '#A855F7',
+          borderWidth: 2,
+        },
+        {
+          label: 'Target',
+          data: target,
+          borderColor: 'rgba(168,85,247,0.35)',
+          backgroundColor: 'transparent',
+          borderDash: [4,4],
+          pointBackgroundColor: 'rgba(168,85,247,0.35)',
+          borderWidth: 1.5,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: tickCol, font: { size: 11 } } } },
+      scales: {
+        r: {
+          min: 0, max: 100,
+          grid: { color: gridCol },
+          angleLines: { color: gridCol },
+          ticks: { display: false },
+          pointLabels: { color: tickCol, font: { size: 10 } },
+        }
+      }
+    }
+  });
+})();
+{% endif %}
+
+// ── Trend line ────────────────────────────────────────────────────────────────
+{% if trend_data %}
 new Chart(document.getElementById('trendChart'), {
   type: 'line',
   data: {
     labels: {{ trend_labels|safe }},
     datasets: [{
-      label: 'Productivity',
       data: {{ trend_data|safe }},
       borderColor: '#A855F7',
       backgroundColor: 'rgba(168,85,247,0.1)',
@@ -129,6 +251,41 @@ new Chart(document.getElementById('trendChart'), {
     }
   }
 });
-</script>
 {% endif %}
+
+// ── Activity heatmap ──────────────────────────────────────────────────────────
+(function() {
+  var heatmap = {{ heatmap_data|safe }};
+  var start   = new Date('{{ heatmap_start|date:"Y-m-d" }}');
+  var today   = new Date('{{ today|date:"Y-m-d" }}');
+  var grid    = document.getElementById('heatmap-grid');
+  if (!grid) return;
+
+  // Rewind to Monday
+  var cursor = new Date(start);
+  cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
+
+  while (cursor <= today) {
+    var col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column;gap:3px';
+    for (var d = 0; d < 7; d++) {
+      var dateStr = cursor.toISOString().slice(0, 10);
+      var score   = heatmap[dateStr] || 0;
+      var cell    = document.createElement('div');
+      var bg;
+      if (cursor > today)       bg = 'transparent';
+      else if (score === 0)     bg = 'var(--gp-border)';
+      else if (score < 2)       bg = 'var(--gp-purple-dim)';
+      else if (score < 3.5)     bg = 'rgba(168,85,247,.35)';
+      else if (score < 4.5)     bg = 'rgba(168,85,247,.6)';
+      else                      bg = 'var(--gp-purple)';
+      cell.title = dateStr + (score ? ' — productivity ' + score + '/5' : '');
+      cell.style.cssText = 'width:11px;height:11px;border-radius:2px;background:' + bg;
+      col.appendChild(cell);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    grid.appendChild(col);
+  }
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Skills — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="skills" %}
+
+<div class="section-title">Skills Overview</div>
+
+{% if skills_data %}
+
+<!-- Radar chart -->
+<div class="gp-card mb-3">
+  <div class="gp-card-title"><i class="ti ti-chart-radar"></i> Skill radar — current vs target</div>
+  <div style="position:relative;height:260px;max-width:340px;margin:0 auto">
+    <canvas id="radarChart"></canvas>
+  </div>
+</div>
+
+<!-- Per-skill cards -->
+{% for item in skills_data %}
+<div class="gp-card mb-3">
+  <div class="d-flex align-items-center gap-3 mb-2">
+    <div class="gp-rec-icon" style="background:{{ item.skill.domain.color_hex }}22;color:{{ item.skill.domain.color_hex }}">
+      <i class="ti {{ item.skill.domain.icon }}"></i>
+    </div>
+    <div style="flex:1">
+      <div class="fw-600">{{ item.skill.domain.name }}</div>
+      <div class="text-muted-sm">{{ item.skill.domain.get_domain_type_display }} ·
+        <span style="color:{% if item.skill.proficiency_label == 'Expert' %}var(--gp-green){% elif item.skill.proficiency_label == 'Proficient' %}var(--gp-purple){% elif item.skill.proficiency_label == 'Developing' %}var(--gp-amber){% else %}var(--gp-text-muted){% endif %}">
+          {{ item.skill.proficiency_label }}
+        </span>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:20px;font-weight:700;color:var(--gp-purple)">{{ item.skill.current_score|floatformat:0 }}</div>
+      <div class="text-muted-sm">/ {{ item.skill.target_score|floatformat:0 }}</div>
+    </div>
+  </div>
+
+  <!-- Current vs target bar -->
+  <div class="gp-progress-bar mb-1" style="position:relative">
+    <div class="gp-progress-fill" style="width:{{ item.skill.current_score }}%"></div>
+    <!-- Target marker -->
+    <div style="position:absolute;top:-2px;bottom:-2px;left:{{ item.skill.target_score }}%;width:2px;background:var(--gp-text-muted);border-radius:1px"></div>
+  </div>
+  <div class="d-flex justify-content-between text-muted-sm mb-2">
+    <span>Gap: {{ item.skill.gap|floatformat:0 }} pts to target</span>
+    {% if item.skill.last_assessed %}<span>Last updated {{ item.skill.last_assessed|date:"d M Y" }}</span>{% endif %}
+  </div>
+
+  <!-- Skill history line chart -->
+  {% if item.history_scores != '[]' %}
+  <div style="position:relative;height:80px">
+    <canvas id="chart-{{ item.skill.pk }}"></canvas>
+  </div>
+  {% else %}
+  <div class="text-muted-sm text-center py-2">No history yet</div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="gp-card text-center py-4">
+  <i class="ti ti-brain" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
+  <div class="fw-600 mb-1">No skills tracked yet</div>
+  <div class="text-muted-sm">Skills are created automatically as you log activities and the system profiles your strengths.</div>
+</div>
+{% endif %}
+
+{% endwith %}
+{% endblock %}
+
+{% block extra_js %}
+{% if skills_data %}
+<script>
+(function() {
+  var labels  = [{% for item in skills_data %}'{{ item.skill.domain.name }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var current = [{% for item in skills_data %}{{ item.skill.current_score }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var target  = [{% for item in skills_data %}{{ item.skill.target_score }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var isDark  = document.documentElement.getAttribute('data-theme') !== 'light';
+  var gridCol = isDark ? 'rgba(42,42,61,0.9)' : 'rgba(228,223,255,0.9)';
+  var tickCol = isDark ? '#6B7280' : '#9CA3AF';
+
+  new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Current', data: current, borderColor: '#A855F7', backgroundColor: 'rgba(168,85,247,0.15)', pointBackgroundColor: '#A855F7', borderWidth: 2 },
+        { label: 'Target',  data: target,  borderColor: 'rgba(168,85,247,0.35)', backgroundColor: 'transparent', borderDash: [4,4], pointBackgroundColor: 'rgba(168,85,247,0.35)', borderWidth: 1.5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: tickCol, font: { size: 11 } } } },
+      scales: {
+        r: { min: 0, max: 100, grid: { color: gridCol }, angleLines: { color: gridCol }, ticks: { display: false }, pointLabels: { color: tickCol, font: { size: 10 } } }
+      }
+    }
+  });
+})();
+
+// Per-skill sparkline charts
+{% for item in skills_data %}
+{% if item.history_scores != '[]' %}
+(function() {
+  var el = document.getElementById('chart-{{ item.skill.pk }}');
+  if (!el) return;
+  new Chart(el, {
+    type: 'line',
+    data: {
+      labels: {{ item.history_labels|safe }},
+      datasets: [{
+        data: {{ item.history_scores|safe }},
+        borderColor: '{{ item.skill.domain.color_hex }}',
+        backgroundColor: '{{ item.skill.domain.color_hex }}22',
+        fill: true, tension: 0.35,
+        pointRadius: 3, pointBackgroundColor: '{{ item.skill.domain.color_hex }}',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Score: ' + ctx.parsed.y } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#6B7280', maxTicksLimit: 6 } },
+        y: { min: 0, max: 100, grid: { color: 'rgba(42,42,61,0.5)' }, ticks: { font: { size: 9 }, color: '#6B7280' } }
+      }
+    }
+  });
+})();
+{% endif %}
+{% endfor %}
+</script>
+{% endif %}
+{% endblock %}

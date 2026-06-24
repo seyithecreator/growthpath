@@ -1,3 +1,8 @@
 from django.urls import path
+from . import views
+
 app_name = 'skills'
-urlpatterns = []
+
+urlpatterns = [
+    path('', views.skill_list, name='list'),
+]

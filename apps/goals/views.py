@@ -9,9 +9,12 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Avg, Count, Sum
 from django.http import JsonResponse
+import json
 
 from .models import Goal, Milestone
 from .forms import GoalForm, MilestoneForm
+from .utils import compute_pgi
+from .roadmap import RoadmapGenerator
 from apps.activities.models import ActivityLog, ProductivitySnapshot
 from apps.skills.models import UserSkill
 from apps.priorities.engine import PriorityEngine
@@ -60,13 +63,23 @@ def dashboard(request):
 
     # ── AI recommendation (top 1 for dashboard teaser) ───────────────────────
     top_rec = user.recommendations.filter(is_read=False).order_by('rank').first()
-    if not top_rec:
-        # Generate fresh recommendations asynchronously; show placeholder
-        top_rec = None
 
-    # ── Skills overview ──────────────────────────────────────────────────────
+    # ── Skills overview + radar data ─────────────────────────────────────────
     skills = UserSkill.objects.filter(user=user, is_active=True).select_related('domain')[:8]
     skills_count = skills.count()
+    radar_labels = [s.domain.name for s in skills]
+    radar_current = [s.current_score for s in skills]
+    radar_target = [s.target_score for s in skills]
+
+    # ── PGI ──────────────────────────────────────────────────────────────────
+    pgi_score = compute_pgi(user)
+
+    # ── Heatmap data (last 84 days / 12 weeks) ───────────────────────────────
+    heatmap_start = today - timezone.timedelta(days=83)
+    heatmap_snaps = ProductivitySnapshot.objects.filter(
+        user=user, date__gte=heatmap_start
+    ).values('date', 'avg_productivity')
+    heatmap_data = {str(s['date']): round(s['avg_productivity'], 1) for s in heatmap_snaps}
 
     context = {
         'active_goals_count': goal_stats['count'] or 0,
@@ -80,6 +93,12 @@ def dashboard(request):
         'top_rec': top_rec,
         'skills': skills,
         'today': today,
+        'pgi_score': pgi_score,
+        'radar_labels': json.dumps(radar_labels),
+        'radar_current': json.dumps(radar_current),
+        'radar_target': json.dumps(radar_target),
+        'heatmap_data': json.dumps(heatmap_data),
+        'heatmap_start': heatmap_start,
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -96,6 +115,9 @@ def goal_list(request):
         goals = goals.filter(category=category)
     if status:
         goals = goals.filter(status=status)
+
+    # Annotate with milestone counts for sub-progress display
+    goals = goals.prefetch_related('milestones')
 
     context = {
         'goals': goals,
@@ -114,7 +136,7 @@ def goal_create(request):
             goal = form.save(commit=False)
             goal.user = request.user
             goal.save()
-            messages.success(request, f'Goal "{goal.title}" created successfully.')
+            messages.success(request, f'Goal "{goal.title}" created. Generate a roadmap to get started!')
             return redirect('goals:detail', pk=goal.pk)
     else:
         form = GoalForm()
@@ -126,12 +148,16 @@ def goal_detail(request, pk):
     goal = get_object_or_404(Goal, pk=pk, user=request.user)
     milestones = goal.milestones.all()
     activity_logs = goal.activity_logs.order_by('-started_at')[:10]
+    completed_count = milestones.filter(is_completed=True).count()
+    total_count = milestones.count()
 
     context = {
         'goal': goal,
         'milestones': milestones,
         'activity_logs': activity_logs,
         'milestone_form': MilestoneForm(),
+        'completed_milestone_count': completed_count,
+        'total_milestone_count': total_count,
     }
     return render(request, 'goals/detail.html', context)
 
@@ -152,7 +178,7 @@ def goal_update(request, pk):
 
 @login_required
 def goal_update_progress(request, pk):
-    """AJAX endpoint to update goal progress value."""
+    """AJAX endpoint to manually update goal progress value."""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
@@ -162,7 +188,6 @@ def goal_update_progress(request, pk):
         goal.current_value = min(new_value, goal.target_value)
         if goal.current_value >= goal.target_value:
             goal.mark_completed()
-            messages.success(request, f'🎉 Goal "{goal.title}" marked as completed!')
         else:
             goal.save()
         return JsonResponse({
@@ -171,6 +196,88 @@ def goal_update_progress(request, pk):
         })
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Invalid value'}, status=400)
+
+
+@login_required
+def complete_milestone(request, goal_pk, milestone_pk):
+    """
+    AJAX endpoint — toggles a milestone's is_completed state and
+    recalculates goal progress proportionally.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    goal = get_object_or_404(Goal, pk=goal_pk, user=request.user)
+    milestone = get_object_or_404(Milestone, pk=milestone_pk, goal=goal)
+
+    # Toggle
+    if milestone.is_completed:
+        milestone.is_completed = False
+        milestone.completed_at = None
+        milestone.save()
+    else:
+        milestone.complete()
+
+    # Recalculate goal progress based on milestones
+    all_milestones = goal.milestones.all()
+    total = all_milestones.count()
+    completed = all_milestones.filter(is_completed=True).count()
+
+    if total > 0:
+        goal.current_value = round((completed / total) * goal.target_value, 2)
+        if completed == total:
+            goal.mark_completed()
+        else:
+            if goal.status == 'completed':
+                goal.status = 'active'
+                goal.completed_at = None
+            goal.save()
+
+    return JsonResponse({
+        'progress': goal.progress_percentage,
+        'milestone_count': total,
+        'completed_count': completed,
+        'milestone_completed': milestone.is_completed,
+        'goal_status': goal.status,
+    })
+
+
+@login_required
+def generate_roadmap(request, pk):
+    """
+    AJAX endpoint — generates milestone roadmap for a goal using
+    the RoadmapGenerator (template-based, no external LLM needed).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+
+    # Remove existing incomplete milestones to start fresh
+    goal.milestones.filter(is_completed=False).delete()
+
+    generator = RoadmapGenerator(goal)
+    milestone_defs = generator.generate()
+
+    created = []
+    for m in milestone_defs:
+        obj = Milestone.objects.create(
+            goal=goal,
+            title=m['title'],
+            description=m['description'],
+            order=m['order'],
+            target_date=m['target_date'],
+        )
+        created.append({
+            'id': obj.pk,
+            'title': obj.title,
+            'description': obj.description,
+            'order': obj.order,
+            'target_date': str(obj.target_date),
+            'is_completed': obj.is_completed,
+        })
+
+    return JsonResponse({'milestones': created, 'count': len(created)})
 
 
 @login_required
