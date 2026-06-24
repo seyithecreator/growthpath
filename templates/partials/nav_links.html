@@ -18,3 +18,9 @@
 <a href="{% url 'recommendations:list' %}" class="gp-nav-link {% if active_nav == 'recs' %}active{% endif %}">
   <i class="ti ti-bulb"></i> Recommendations
 </a>
+{% if user.is_staff %}
+<div class="gp-nav-section">Admin</div>
+<a href="/admin/" class="gp-nav-link" target="_blank">
+  <i class="ti ti-settings"></i> Admin Panel
+</a>
+{% endif %}

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — GrowthPath</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <script>(function(){var t=localStorage.getItem('gp-theme')||'dark';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
+  <style>
+    :root {
+      --login-bg:      #09090F;
+      --login-card:    #13131F;
+      --login-border:  #2A2A3D;
+      --login-text:    #E2E8F0;
+      --login-muted:   #6B7280;
+      --login-input:   #1C1C2E;
+      --login-ph:      #3D3D5C;
+      --login-purple:  #A855F7;
+      --login-purple2: #7C3AED;
+    }
+    [data-theme="light"] {
+      --login-bg:      #F8F7FF;
+      --login-card:    #FFFFFF;
+      --login-border:  #E4DFFF;
+      --login-text:    #1A1033;
+      --login-muted:   #6B7280;
+      --login-input:   #F3F0FF;
+      --login-ph:      #C4B5FD;
+      --login-purple:  #7C3AED;
+      --login-purple2: #6D28D9;
+    }
+    body { background: var(--login-bg); color: var(--login-text); min-height: 100vh; padding: 40px 16px; }
+    .login-wrap { max-width: 480px; margin: 0 auto; }
+    .login-card { background: var(--login-card); border: 1px solid var(--login-border); border-radius: 18px; padding: 36px 32px; }
+    .logo-box { width: 52px; height: 52px; border-radius: 14px; background: var(--login-purple); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 14px; }
+    .gp-input {
+      background: var(--login-input); border: 1px solid var(--login-border);
+      border-radius: 9px; padding: 10px 14px; font-size: 14px;
+      width: 100%; color: var(--login-text); outline: none; transition: border .15s;
+    }
+    .gp-input:focus { border-color: var(--login-purple); box-shadow: 0 0 0 3px rgba(168,85,247,.2); }
+    .gp-input::placeholder { color: var(--login-ph); }
+    select.gp-input option { background: var(--login-card); }
+    .gp-label { font-size: 13px; font-weight: 500; color: var(--login-muted); margin-bottom: 5px; display: block; }
+    .gp-btn { background: var(--login-purple); border: none; border-radius: 99px; color: #fff; font-weight: 600; font-size: 14px; width: 100%; padding: 11px; cursor: pointer; transition: background .15s; }
+    .gp-btn:hover { background: var(--login-purple2); }
+    .gp-divider { border: none; border-top: 1px solid var(--login-border); margin: 24px 0; }
+    .gp-error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); border-radius: 9px; padding: 8px 12px; font-size: 13px; color: #EF4444; margin-top: 4px; }
+    .gp-section { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--login-ph); margin: 20px 0 12px; }
+    .gp-toggle-login { position: fixed; top: 16px; right: 16px; background: var(--login-card); border: 1px solid var(--login-border); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 18px; color: var(--login-muted); transition: all .2s; z-index: 100; }
+    .gp-toggle-login:hover { color: var(--login-purple); border-color: var(--login-purple); }
+  </style>
+</head>
+<body>
+  <button class="gp-toggle-login" id="themeToggle" aria-label="Toggle theme">
+    <i class="ti gp-theme-icon"></i>
+  </button>
+
+  <div class="login-wrap">
+    <div class="text-center mb-4">
+      <div class="logo-box"><i class="ti ti-trending-up"></i></div>
+      <h1 style="font-size:24px;font-weight:800;margin-bottom:4px">GrowthPath</h1>
+      <p style="font-size:13px;color:var(--login-muted)">Personal Growth & Skill Development</p>
+    </div>
+
+    <div class="login-card">
+      <h2 style="font-size:18px;font-weight:700;margin-bottom:20px;text-align:center">Create your account</h2>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <p class="gp-section">Personal info</p>
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="gp-label">First name</label>
+            <input type="text" name="first_name" class="gp-input" placeholder="Tunde" value="{{ form.first_name.value|default:'' }}" required>
+            {% if form.first_name.errors %}<div class="gp-error">{{ form.first_name.errors|join:", " }}</div>{% endif %}
+          </div>
+          <div class="col-6">
+            <label class="gp-label">Last name</label>
+            <input type="text" name="last_name" class="gp-input" placeholder="Adesanya" value="{{ form.last_name.value|default:'' }}" required>
+            {% if form.last_name.errors %}<div class="gp-error">{{ form.last_name.errors|join:", " }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="gp-label">Email</label>
+          <input type="email" name="email" class="gp-input" placeholder="you@example.com" value="{{ form.email.value|default:'' }}" required>
+          {% if form.email.errors %}<div class="gp-error">{{ form.email.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="gp-label">Username</label>
+          <input type="text" name="username" class="gp-input" placeholder="e.g. tunde_a" value="{{ form.username.value|default:'' }}" required>
+          {% if form.username.errors %}<div class="gp-error">{{ form.username.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        <p class="gp-section">University (optional)</p>
+        <div class="mb-3">
+          <label class="gp-label">University</label>
+          <input type="text" name="university" class="gp-input" placeholder="e.g. University of Lagos" value="{{ form.university.value|default:'' }}">
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-7">
+            <label class="gp-label">Department</label>
+            <input type="text" name="department" class="gp-input" placeholder="e.g. Computer Science" value="{{ form.department.value|default:'' }}">
+          </div>
+          <div class="col-5">
+            <label class="gp-label">Level</label>
+            <select name="year_of_study" class="gp-input">
+              <option value="">Select…</option>
+              {% for val, label in form.fields.year_of_study.choices %}
+                {% if val %}<option value="{{ val }}" {% if form.year_of_study.value == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>{% endif %}
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <p class="gp-section">Password</p>
+        <div class="mb-3">
+          <label class="gp-label">Password</label>
+          <input type="password" name="password1" class="gp-input" placeholder="••••••••" required>
+          {% if form.password1.errors %}<div class="gp-error">{{ form.password1.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="mb-4">
+          <label class="gp-label">Confirm password</label>
+          <input type="password" name="password2" class="gp-input" placeholder="••••••••" required>
+          {% if form.password2.errors %}<div class="gp-error">{{ form.password2.errors|join:", " }}</div>{% endif %}
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="gp-error mb-3">{{ form.non_field_errors|join:", " }}</div>
+        {% endif %}
+
+        <button type="submit" class="gp-btn">Create account →</button>
+      </form>
+
+      <hr class="gp-divider">
+      <p style="text-align:center;font-size:13px;color:var(--login-muted);margin:0">
+        Already have an account?
+        <a href="{% url 'accounts:login' %}" style="color:var(--login-purple);font-weight:600">Sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  (function() {
+    function getTheme() { return localStorage.getItem('gp-theme') || 'dark'; }
+    function applyIcon(theme) {
+      document.querySelectorAll('.gp-theme-icon').forEach(function(el) {
+        el.className = 'ti ' + (theme === 'dark' ? 'ti-moon' : 'ti-sun');
+      });
+    }
+    applyIcon(getTheme());
+    document.getElementById('themeToggle').addEventListener('click', function() {
+      var next = getTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      document.documentElement.setAttribute('data-bs-theme', next);
+      localStorage.setItem('gp-theme', next);
+      applyIcon(next);
+    });
+  })();
+  </script>
+</body>
+</html>
