@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Goal — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="goals" %}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+  <a href="{% url 'goals:list' %}" style="color:var(--gp-text-muted);text-decoration:none"><i class="ti ti-arrow-left fs-5"></i></a>
+  <div class="section-title mb-0">{{ action }} Goal</div>
+</div>
+
+<div class="gp-card">
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="mb-3">
+      <label class="gp-form-label">{{ field.label }}{% if field.field.required %} <span style="color:var(--gp-purple)">*</span>{% endif %}</label>
+      {{ field }}
+      {% if field.help_text %}<div class="text-muted-sm mt-1">{{ field.help_text }}</div>{% endif %}
+      {% for error in field.errors %}
+        <div style="color:var(--gp-red);font-size:12px;margin-top:4px">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <div class="d-flex gap-2 mt-3">
+      <button type="submit" class="btn btn-primary rounded-pill px-4">{{ action }} Goal</button>
+      <a href="{% if goal %}{% url 'goals:detail' goal.pk %}{% else %}{% url 'goals:list' %}{% endif %}"
+         class="btn btn-outline-secondary rounded-pill px-4">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endwith %}
+{% endblock %}

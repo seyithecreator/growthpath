@@ -1,0 +1,14 @@
+<div class="gp-nav-section">Main</div>
+<a href="{% url 'goals:dashboard' %}" class="gp-nav-link {% if active_nav == 'dashboard' %}active{% endif %}">
+  <i class="ti ti-home"></i> Dashboard
+</a>
+<a href="{% url 'goals:list' %}" class="gp-nav-link {% if active_nav == 'goals' %}active{% endif %}">
+  <i class="ti ti-target"></i> Goals
+</a>
+<a href="{% url 'priorities:list' %}" class="gp-nav-link {% if active_nav == 'priorities' %}active{% endif %}">
+  <i class="ti ti-sort-descending"></i> Priorities
+</a>
+<div class="gp-nav-section">Insights</div>
+<a href="{% url 'recommendations:list' %}" class="gp-nav-link {% if active_nav == 'recs' %}active{% endif %}">
+  <i class="ti ti-bulb"></i> Recommendations
+</a>

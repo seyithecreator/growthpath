@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#A855F7">
+  <title>{% block title %}GrowthPath{% endblock %}</title>
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+
+  <!-- Tabler Icons -->
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --gp-bg:          #09090F;
+      --gp-surface:     #13131F;
+      --gp-surface-2:   #1C1C2E;
+      --gp-border:      #2A2A3D;
+      --gp-purple:      #A855F7;
+      --gp-purple-dark: #7C3AED;
+      --gp-purple-dim:  #2D1B4E;
+      --gp-text:        #E2E8F0;
+      --gp-text-muted:  #6B7280;
+      --gp-green:       #22C55E;
+      --gp-amber:       #F59E0B;
+      --gp-red:         #EF4444;
+      --gp-cyan:        #06B6D4;
+      --gp-hero-from:   #1E0A3C;
+      --gp-hero-to:     #4C1D95;
+      --sidebar-w:      260px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gp-bg);
+      color: var(--gp-text);
+      font-size: 15px;
+    }
+
+    /* ── Topbar (mobile) ─────────────────────────────────────────── */
+    .gp-topbar {
+      background: var(--gp-surface);
+      border-bottom: 1px solid var(--gp-border);
+      height: 56px;
+      position: sticky; top: 0; z-index: 1030;
+      display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    }
+    .gp-logo {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--gp-purple); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .gp-topbar-title { font-weight: 700; font-size: 17px; flex: 1; color: var(--gp-text); }
+    .gp-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--gp-purple-dim); color: var(--gp-purple);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 13px; border: 2px solid var(--gp-purple);
+      text-decoration: none;
+    }
+
+    /* ── Desktop sidebar ─────────────────────────────────────────── */
+    @media (min-width: 768px) {
+      .gp-topbar { display: none; }
+      .gp-sidebar {
+        width: var(--sidebar-w);
+        position: fixed; left: 0; top: 0; bottom: 0;
+        background: var(--gp-surface); border-right: 1px solid var(--gp-border);
+        display: flex; flex-direction: column; padding: 24px 0;
+        z-index: 100; overflow-y: auto;
+      }
+      .gp-main { margin-left: var(--sidebar-w); }
+      .gp-bottom-nav { display: none !important; }
+    }
+    @media (max-width: 767px) {
+      .gp-sidebar { display: none; }
+    }
+
+    .gp-sidebar-logo {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 20px 24px; border-bottom: 1px solid var(--gp-border); margin-bottom: 8px;
+    }
+    .gp-sidebar-logo .logo-mark {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--gp-purple); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+    }
+    .gp-sidebar-logo .logo-text { font-weight: 800; font-size: 18px; color: var(--gp-text); }
+
+    .gp-nav-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 20px; color: var(--gp-text-muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      transition: all .15s; margin: 2px 12px; border-radius: 8px;
+    }
+    .gp-nav-link i { font-size: 19px; }
+    .gp-nav-link:hover { background: var(--gp-surface-2); color: var(--gp-purple); }
+    .gp-nav-link.active { background: var(--gp-purple-dim); color: var(--gp-purple); font-weight: 600; }
+    .gp-nav-section {
+      font-size: 11px; font-weight: 600; letter-spacing: .05em;
+      color: #3D3D5C; text-transform: uppercase; padding: 12px 20px 4px;
+    }
+
+    /* ── Bottom nav (mobile) ─────────────────────────────────────── */
+    .gp-bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--gp-surface); border-top: 1px solid var(--gp-border);
+      display: flex; z-index: 1030;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .gp-bottom-nav a {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 4px 10px; font-size: 10px; font-weight: 500;
+      color: var(--gp-text-muted); text-decoration: none; gap: 3px; transition: color .15s;
+    }
+    .gp-bottom-nav a i { font-size: 22px; }
+    .gp-bottom-nav a.active { color: var(--gp-purple); }
+
+    /* ── Content ─────────────────────────────────────────────────── */
+    .gp-content {
+      padding: 20px 16px 90px;
+      max-width: 900px; margin: 0 auto;
+    }
+    @media (min-width: 768px) {
+      .gp-content { padding: 32px 32px 40px; }
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────── */
+    .gp-card {
+      background: var(--gp-surface); border: 1px solid var(--gp-border);
+      border-radius: 14px; padding: 18px;
+    }
+    .gp-card-title {
+      font-size: 14px; font-weight: 600; color: var(--gp-text);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+    }
+    .gp-card-title i { font-size: 17px; color: var(--gp-purple); }
+
+    /* ── Hero card ───────────────────────────────────────────────── */
+    .gp-hero {
+      background: linear-gradient(135deg, var(--gp-hero-from), var(--gp-hero-to));
+      border-radius: 16px; color: #fff; padding: 22px; margin-bottom: 18px;
+      position: relative; overflow: hidden;
+      border: 1px solid rgba(168,85,247,0.3);
+    }
+    .gp-hero::after {
+      content: ''; position: absolute; right: -30px; top: -30px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: rgba(168,85,247,.12);
+    }
+    .gp-hero-stats { display: flex; gap: 20px; margin-top: 14px; }
+    .gp-hero-stat-val { font-size: 22px; font-weight: 700; }
+    .gp-hero-stat-lab { font-size: 11px; opacity: .7; }
+
+    /* ── Stat cards ──────────────────────────────────────────────── */
+    .gp-stat {
+      background: var(--gp-surface); border: 1px solid var(--gp-border); border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .gp-stat-label { font-size: 12px; color: var(--gp-text-muted); margin-bottom: 4px; }
+    .gp-stat-value { font-size: 24px; font-weight: 700; color: var(--gp-text); }
+    .gp-stat-sub { font-size: 12px; margin-top: 2px; color: var(--gp-text-muted); }
+
+    /* ── Progress bars ───────────────────────────────────────────── */
+    .gp-progress-bar {
+      height: 9px; background: var(--gp-border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .gp-progress-fill {
+      height: 100%; border-radius: 99px; transition: width .5s ease;
+      background: linear-gradient(90deg, var(--gp-purple-dark), var(--gp-purple));
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────── */
+    .gp-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 3px 9px; border-radius: 99px;
+      font-size: 11px; font-weight: 500;
+    }
+    .gp-badge-blue   { background: rgba(168,85,247,.15); color: var(--gp-purple); }
+    .gp-badge-green  { background: rgba(34,197,94,.15);  color: var(--gp-green); }
+    .gp-badge-amber  { background: rgba(245,158,11,.15); color: var(--gp-amber); }
+    .gp-badge-red    { background: rgba(239,68,68,.15);  color: var(--gp-red); }
+    .gp-badge-purple { background: var(--gp-purple-dim); color: var(--gp-purple); }
+    .gp-badge-gray   { background: var(--gp-surface-2);  color: var(--gp-text-muted); }
+
+    /* ── Priority items ──────────────────────────────────────────── */
+    .gp-priority-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 0; border-bottom: 1px solid var(--gp-border);
+    }
+    .gp-priority-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .gp-rank {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--gp-purple-dim); color: var(--gp-purple);
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .gp-priority-score {
+      font-size: 17px; font-weight: 700; color: var(--gp-purple);
+      text-align: right; min-width: 40px;
+    }
+    .gp-priority-score small { display: block; font-size: 10px; font-weight: 400; color: var(--gp-text-muted); }
+
+    /* ── Recommendation items ────────────────────────────────────── */
+    .gp-rec-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 19px;
+      flex-shrink: 0;
+    }
+
+    /* ── Forms ───────────────────────────────────────────────────── */
+    .gp-form-label { font-size: 13px; font-weight: 500; color: var(--gp-text-muted); margin-bottom: 5px; }
+    .gp-form-control {
+      border: 1px solid var(--gp-border); border-radius: 9px; padding: 9px 13px;
+      font-size: 14px; width: 100%; transition: border .15s; outline: none;
+      background: var(--gp-surface-2); color: var(--gp-text);
+    }
+    .gp-form-control:focus {
+      border-color: var(--gp-purple);
+      box-shadow: 0 0 0 3px rgba(168,85,247,.2);
+    }
+    .gp-form-control::placeholder { color: #3D3D5C; }
+    select.gp-form-control option { background: var(--gp-surface-2); }
+
+    /* ── Alerts ──────────────────────────────────────────────────── */
+    .gp-alert {
+      border-radius: 10px; padding: 12px 16px; font-size: 14px;
+      border: none; margin-bottom: 16px;
+      background: var(--gp-surface-2); color: var(--gp-text);
+    }
+
+    /* ── Log items ───────────────────────────────────────────────── */
+    .gp-log-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+
+    /* ── Utilities ───────────────────────────────────────────────── */
+    .fw-600 { font-weight: 600; }
+    .text-muted-sm { font-size: 12px; color: var(--gp-text-muted); }
+    .section-title { font-size: 17px; font-weight: 700; margin-bottom: 14px; color: var(--gp-text); }
+
+    /* ── Bootstrap overrides for dark theme ─────────────────────── */
+    .btn-primary {
+      background: var(--gp-purple); border-color: var(--gp-purple);
+    }
+    .btn-primary:hover, .btn-primary:focus {
+      background: var(--gp-purple-dark); border-color: var(--gp-purple-dark);
+    }
+    .btn-outline-secondary {
+      border-color: var(--gp-border); color: var(--gp-text-muted);
+    }
+    .btn-outline-secondary:hover {
+      background: var(--gp-surface-2); color: var(--gp-text); border-color: var(--gp-border);
+    }
+    .text-success { color: var(--gp-green) !important; }
+    .offcanvas {
+      background: var(--gp-surface) !important;
+      border-right: 1px solid var(--gp-border) !important;
+    }
+    .offcanvas-title { color: var(--gp-text); }
+    a { color: var(--gp-purple); }
+    a:hover { color: var(--gp-purple-dark); }
+    .border-bottom { border-color: var(--gp-border) !important; }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Mobile topbar -->
+  <div class="gp-topbar d-md-none">
+    <div class="gp-logo"><i class="ti ti-trending-up"></i></div>
+    <div class="gp-topbar-title">GrowthPath</div>
+    <button class="btn p-0 border-0 bg-transparent" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-label="Menu">
+      <i class="ti ti-menu-2 fs-4" style="color:var(--gp-text-muted)"></i>
+    </button>
+    <a href="{% url 'accounts:profile' %}" class="gp-avatar">{{ request.user.initials }}</a>
+  </div>
+
+  <!-- Desktop sidebar -->
+  <nav class="gp-sidebar d-none d-md-flex flex-column">
+    <div class="gp-sidebar-logo">
+      <div class="logo-mark"><i class="ti ti-trending-up"></i></div>
+      <div class="logo-text">GrowthPath</div>
+    </div>
+    {% include "partials/nav_links.html" %}
+    <div class="mt-auto px-3 pt-3" style="border-top:1px solid var(--gp-border)">
+      <a href="{% url 'accounts:profile' %}" class="gp-nav-link">
+        <i class="ti ti-user-circle"></i>
+        <div>
+          <div class="fw-600" style="font-size:13px;color:var(--gp-text)">{{ request.user.display_name }}</div>
+          <div style="font-size:11px;color:var(--gp-text-muted)">{{ request.user.university|default:"Profile" }}</div>
+        </div>
+      </a>
+      <a href="{% url 'accounts:logout' %}" class="gp-nav-link" style="color:var(--gp-red)">
+        <i class="ti ti-logout"></i> Sign out
+      </a>
+    </div>
+  </nav>
+
+  <!-- Mobile offcanvas menu -->
+  <div class="offcanvas offcanvas-start" id="mobileMenu" tabindex="-1">
+    <div class="offcanvas-header" style="border-bottom:1px solid var(--gp-border)">
+      <h5 class="offcanvas-title fw-bold">GrowthPath</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      {% include "partials/nav_links.html" %}
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="gp-main">
+    <div class="gp-content">
+
+      {% for msg in messages %}
+        <div class="gp-alert d-flex align-items-center gap-2" style="background:var(--gp-purple-dim);border:1px solid rgba(168,85,247,.3);color:var(--gp-text)">
+          <i class="ti ti-info-circle" style="color:var(--gp-purple)"></i> {{ msg }}
+          <button type="button" class="btn-close ms-auto btn-close-white" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Mobile bottom nav -->
+  <nav class="gp-bottom-nav d-md-none" aria-label="Main navigation">
+    <a href="{% url 'goals:dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">
+      <i class="ti ti-home"></i><span>Dashboard</span>
+    </a>
+    <a href="{% url 'goals:list' %}" class="{% if active_nav == 'goals' %}active{% endif %}">
+      <i class="ti ti-target"></i><span>Goals</span>
+    </a>
+    <a href="{% url 'priorities:list' %}" class="{% if active_nav == 'priorities' %}active{% endif %}">
+      <i class="ti ti-sort-descending"></i><span>Priorities</span>
+    </a>
+    <a href="{% url 'recommendations:list' %}" class="{% if active_nav == 'recs' %}active{% endif %}">
+      <i class="ti ti-bulb"></i><span>Insights</span>
+    </a>
+    <a href="{% url 'accounts:profile' %}" class="{% if active_nav == 'profile' %}active{% endif %}">
+      <i class="ti ti-user"></i><span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Bootstrap 5 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

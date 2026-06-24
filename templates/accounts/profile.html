@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Profile — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="profile" %}
+
+<div class="section-title">My Profile</div>
+
+<div class="gp-card mb-3">
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <div style="width:56px;height:56px;border-radius:50%;background:var(--gp-purple-dim);color:var(--gp-purple);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;border:2px solid var(--gp-purple)">
+      {{ request.user.initials }}
+    </div>
+    <div>
+      <div style="font-size:18px;font-weight:700">{{ request.user.display_name }}</div>
+      <div class="text-muted-sm">@{{ request.user.username }}</div>
+    </div>
+  </div>
+
+  <div class="row g-2" style="font-size:13px">
+    <div class="col-6">
+      <div class="text-muted-sm">University</div>
+      <div class="fw-600">{{ request.user.university|default:"—" }}</div>
+    </div>
+    <div class="col-6">
+      <div class="text-muted-sm">Department</div>
+      <div class="fw-600">{{ request.user.department|default:"—" }}</div>
+    </div>
+    <div class="col-6 mt-2">
+      <div class="text-muted-sm">Year of Study</div>
+      <div class="fw-600">{{ request.user.get_year_of_study_display|default:"—" }}</div>
+    </div>
+    <div class="col-6 mt-2">
+      <div class="text-muted-sm">Points</div>
+      <div class="fw-600">{{ request.user.total_points }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="gp-card mb-3">
+  <div class="gp-card-title"><i class="ti ti-flame"></i> Streak & Activity</div>
+  <div class="row g-2 text-center">
+    <div class="col-4">
+      <div style="font-size:24px;font-weight:700;color:var(--gp-purple)">{{ request.user.streak_days }}</div>
+      <div class="text-muted-sm">Day streak</div>
+    </div>
+    <div class="col-4">
+      <div style="font-size:24px;font-weight:700;color:var(--gp-purple)">{{ request.user.total_points }}</div>
+      <div class="text-muted-sm">Points</div>
+    </div>
+    <div class="col-4">
+      <div style="font-size:24px;font-weight:700;color:var(--gp-green)">{{ request.user.achievements.count }}</div>
+      <div class="text-muted-sm">Badges</div>
+    </div>
+  </div>
+</div>
+
+<a href="{% url 'accounts:logout' %}" class="btn btn-outline-danger rounded-pill w-100">
+  <i class="ti ti-logout"></i> Sign out
+</a>
+
+{% endwith %}
+{% endblock %}

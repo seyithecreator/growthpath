@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Goals — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="goals" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="section-title mb-0">My Goals</div>
+  <a href="{% url 'goals:create' %}" class="btn btn-primary btn-sm rounded-pill">
+    <i class="ti ti-plus"></i> New goal
+  </a>
+</div>
+
+<!-- Filters -->
+<div class="d-flex gap-2 flex-wrap mb-3">
+  {% for val, label in categories %}
+  <a href="?category={{ val }}&status={{ status_filter }}"
+     class="gp-badge {% if category_filter == val %}gp-badge-purple{% else %}gp-badge-gray{% endif %}"
+     style="padding:5px 12px;text-decoration:none;cursor:pointer">{{ label }}</a>
+  {% endfor %}
+  <a href="?status={{ status_filter }}"
+     class="gp-badge {% if not category_filter %}gp-badge-purple{% else %}gp-badge-gray{% endif %}"
+     style="padding:5px 12px;text-decoration:none;cursor:pointer">All</a>
+</div>
+
+{% for goal in goals %}
+<div class="gp-card mb-2">
+  <div class="d-flex justify-content-between align-items-start mb-2">
+    <div>
+      <a href="{% url 'goals:detail' goal.pk %}" style="font-size:15px;font-weight:600;color:var(--gp-text);text-decoration:none">
+        {{ goal.title }}
+      </a>
+      <div class="text-muted-sm mt-1">
+        {% if goal.priority == 'high' %}
+          <span class="gp-badge gp-badge-red">High</span>
+        {% elif goal.priority == 'medium' %}
+          <span class="gp-badge gp-badge-amber">Medium</span>
+        {% else %}
+          <span class="gp-badge gp-badge-gray">Low</span>
+        {% endif %}
+        &nbsp;{{ goal.get_category_display }} &nbsp;·&nbsp; Due {{ goal.target_date|date:"d M Y" }}
+        {% if goal.is_overdue %}<span class="gp-badge gp-badge-red ms-1">Overdue</span>{% endif %}
+      </div>
+    </div>
+    <a href="{% url 'goals:update' goal.pk %}" class="btn btn-sm rounded-pill"
+       style="font-size:11px;border:1px solid var(--gp-border);color:var(--gp-text-muted);background:var(--gp-surface-2)">Edit</a>
+  </div>
+  <div class="gp-progress-bar">
+    <div class="gp-progress-fill" style="width:{{ goal.progress_percentage }}%"></div>
+  </div>
+  <div class="d-flex justify-content-between mt-1 text-muted-sm">
+    <span>{{ goal.progress_percentage }}% complete</span>
+    <span>{{ goal.days_remaining }} days left</span>
+  </div>
+</div>
+{% empty %}
+<div class="gp-card text-center py-4">
+  <i class="ti ti-target" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
+  <div class="fw-600 mb-1">No goals found</div>
+  <div class="text-muted-sm mb-3">Create your first goal to get started.</div>
+  <a href="{% url 'goals:create' %}" class="btn btn-primary btn-sm rounded-pill">Add a goal</a>
+</div>
+{% endfor %}
+
+{% endwith %}
+{% endblock %}

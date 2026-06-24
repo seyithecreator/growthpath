@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Priorities — GrowthPath{% endblock %}
+{% block content %}
+{% with active_nav="priorities" %}
+
+<div class="section-title">Priority Rankings</div>
+<p class="text-muted-sm mb-3">Goals ranked by deadline urgency, importance, and completion history.</p>
+
+{% for item in items %}
+<div class="gp-card mb-2">
+  <div class="d-flex align-items-center gap-3">
+    <div class="gp-rank" style="width:32px;height:32px;font-size:14px">{{ item.rank }}</div>
+    <div style="flex:1">
+      <div class="fw-600" style="font-size:14px">{{ item.title }}</div>
+      <div class="text-muted-sm mt-1">
+        {{ item.category|capfirst }}
+        &nbsp;·&nbsp; Due {{ item.target_date|date:"d M Y" }}
+        &nbsp;·&nbsp;
+        {% if item.urgency_label == 'Critical' %}
+          <span class="gp-badge gp-badge-red">Critical</span>
+        {% elif item.urgency_label == 'High' %}
+          <span class="gp-badge gp-badge-amber">High</span>
+        {% elif item.urgency_label == 'Medium' %}
+          <span class="gp-badge gp-badge-blue">Medium</span>
+        {% else %}
+          <span class="gp-badge gp-badge-gray">Low</span>
+        {% endif %}
+      </div>
+      <!-- Score breakdown -->
+      <div class="row g-2 mt-2" style="font-size:11px;color:var(--gp-text-muted)">
+        <div class="col-4">
+          Urgency<br>
+          <strong style="color:var(--gp-text)">{{ item.urgency_score }}</strong>
+        </div>
+        <div class="col-4">
+          Importance<br>
+          <strong style="color:var(--gp-text)">{{ item.importance_score }}</strong>
+        </div>
+        <div class="col-4">
+          History<br>
+          <strong style="color:var(--gp-text)">{{ item.completion_rate_score }}</strong>
+        </div>
+      </div>
+      <div class="gp-progress-bar mt-2">
+        <div class="gp-progress-fill" style="width:{{ item.current_progress }}%"></div>
+      </div>
+      <div class="text-muted-sm mt-1">{{ item.current_progress }}% progress</div>
+    </div>
+    <div class="gp-priority-score">{{ item.composite_score }}<small>/ 100</small></div>
+  </div>
+</div>
+{% empty %}
+<div class="gp-card text-center py-4">
+  <i class="ti ti-sort-descending" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
+  <div class="fw-600 mb-1">No active goals to rank</div>
+  <div class="text-muted-sm mb-3">Add goals to see priority rankings.</div>
+  <a href="{% url 'goals:create' %}" class="btn btn-primary btn-sm rounded-pill">Add a goal</a>
+</div>
+{% endfor %}
+
+{% endwith %}
+{% endblock %}
