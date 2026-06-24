@@ -19,6 +19,7 @@ from apps.activities.models import ActivityLog, ProductivitySnapshot
 from apps.skills.models import UserSkill
 from apps.priorities.engine import PriorityEngine
 from apps.recommendations.engine import RecommendationEngine
+from apps.recommendations.models import Recommendation as RecommendationRecord
 
 
 @login_required
@@ -245,19 +246,39 @@ def complete_milestone(request, goal_pk, milestone_pk):
 @login_required
 def generate_roadmap(request, pk):
     """
-    AJAX endpoint — generates milestone roadmap for a goal using
-    the RoadmapGenerator (template-based, no external LLM needed).
+    AJAX endpoint — generates milestone roadmap for a goal.
+    Uses Gemini AI when a key is configured; falls back to
+    template-based RoadmapGenerator automatically.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
+    from django.conf import settings
     goal = get_object_or_404(Goal, pk=pk, user=request.user)
 
     # Remove existing incomplete milestones to start fresh
     goal.milestones.filter(is_completed=False).delete()
 
-    generator = RoadmapGenerator(goal)
-    milestone_defs = generator.generate()
+    milestone_defs = None
+
+    # ── Try Gemini first ──────────────────────────────────────────────────────
+    if settings.GEMINI_API_KEY:
+        from .ai_client import GeminiClient
+        raw = GeminiClient().generate_roadmap(goal, request.user)
+        if raw:
+            milestone_defs = []
+            for m in raw:
+                target_date = goal.start_date + timezone.timedelta(days=m['days_from_start'])
+                milestone_defs.append({
+                    'title': m['title'],
+                    'description': m['description'],
+                    'order': m['order'],
+                    'target_date': target_date,
+                })
+
+    # ── Fall back to template-based generator ─────────────────────────────────
+    if not milestone_defs:
+        milestone_defs = RoadmapGenerator(goal).generate()
 
     created = []
     for m in milestone_defs:
@@ -280,10 +301,48 @@ def generate_roadmap(request, pk):
     return JsonResponse({'milestones': created, 'count': len(created)})
 
 
+VALID_REC_TYPES = {'deadline', 'skill_gap', 'habit', 'schedule', 'peer', 'resource'}
+
+
 @login_required
 def generate_recommendations(request, pk=None):
-    """Trigger fresh recommendation generation for the user."""
-    engine = RecommendationEngine(request.user)
-    recs = engine.generate()
-    messages.success(request, f'{len(recs)} recommendations generated.')
+    """
+    Trigger fresh recommendation generation.
+    Uses Gemini AI when a key is configured; falls back to the
+    rule-based + ML RecommendationEngine automatically.
+    """
+    from django.conf import settings
+    user = request.user
+    count = 0
+
+    # ── Try Gemini first ──────────────────────────────────────────────────────
+    if settings.GEMINI_API_KEY:
+        from .ai_client import GeminiClient
+        raw = GeminiClient().generate_recommendations(user)
+        if raw:
+            # Clear old unread recommendations before saving fresh ones
+            RecommendationRecord.objects.filter(user=user, is_read=False).delete()
+            for i, rec in enumerate(raw, start=1):
+                rec_type = rec.get('type', 'resource')
+                if rec_type not in VALID_REC_TYPES:
+                    rec_type = 'resource'
+                RecommendationRecord.objects.create(
+                    user=user,
+                    rec_type=rec_type,
+                    rank=i,
+                    title=str(rec.get('title', ''))[:300],
+                    description=str(rec.get('description', '')),
+                    action_label=str(rec.get('action_label', 'Take action'))[:100],
+                    icon=str(rec.get('icon', 'ti-bulb'))[:50],
+                    confidence=float(rec.get('confidence', 0.8)),
+                    tags=[],
+                )
+            count = len(raw)
+
+    # ── Fall back to rule-based + ML engine ───────────────────────────────────
+    if count == 0:
+        recs = RecommendationEngine(user).generate()
+        count = len(recs)
+
+    messages.success(request, f'{count} personalised recommendations generated.')
     return redirect(request.META.get('HTTP_REFERER', 'goals:dashboard'))
