@@ -105,10 +105,14 @@ class GroqClient:
             .prefetch_related('milestones')
             .order_by('target_date')[:8]
         )
+        from django.db.models import F, ExpressionWrapper, FloatField
         skills = list(
             UserSkill.objects.filter(user=user, is_active=True)
             .select_related('domain')
-            .order_by('-gap')[:8]
+            .annotate(computed_gap=ExpressionWrapper(
+                F('target_score') - F('current_score'), output_field=FloatField()
+            ))
+            .order_by('-computed_gap')[:8]
         )
 
         two_weeks_ago = timezone.now() - timedelta(days=14)
