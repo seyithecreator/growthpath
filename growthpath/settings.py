@@ -4,6 +4,7 @@ Personal Growth & Skill Development Decision-Support System
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from decouple import config
 
@@ -16,6 +17,16 @@ GROQ_API_KEY = config('GROQ_API_KEY', default='')
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+
+# Allow Railway domains automatically
+_railway_domain = config('RAILWAY_PUBLIC_DOMAIN', default='')
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
+
+CSRF_TRUSTED_ORIGINS = [
+    f'https://{_railway_domain}' for _railway_domain in ALLOWED_HOSTS
+    if _railway_domain not in ('localhost', '127.0.0.1')
+]
 
 # ─── Applications ────────────────────────────────────────────────────────────
 
@@ -77,16 +88,20 @@ WSGI_APPLICATION = 'growthpath.wsgi.application'
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='growthpath_db'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='password'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+_database_url = config('DATABASE_URL', default='')
+if _database_url:
+    DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='growthpath_db'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='postgres'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
     }
-}
 
 # ─── Auth & REST Framework ────────────────────────────────────────────────────
 
