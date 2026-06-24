@@ -58,8 +58,12 @@
     [data-theme="light"] .gp-form-control::placeholder { color: #C4B5FD; }
     [data-theme="light"] .btn-outline-secondary { color: #6B7280; }
     [data-theme="light"] .btn-close { filter: none; }
-    [data-theme="light"] a { color: var(--gp-purple); }
-    [data-theme="light"] a:hover { color: var(--gp-purple-dark); }
+    [data-theme="light"] a:not(.btn) { color: var(--gp-purple); }
+    [data-theme="light"] a:not(.btn):hover { color: var(--gp-purple-dark); }
+    [data-theme="light"] .btn-primary,
+    [data-theme="light"] a.btn-primary { color: #fff; }
+    [data-theme="light"] .btn-primary:hover,
+    [data-theme="light"] a.btn-primary:hover { color: #fff; }
 
     /* ── Theme toggle button ─────────────────────────────────────── */
     .gp-theme-btn {

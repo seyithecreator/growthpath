@@ -11,20 +11,12 @@
 </div>
 
 {% for rec in recs %}
-{% if rec.rec_type == 'deadline' %}
-  {% with border_color="#EF4444" icon_bg="rgba(239,68,68,0.15)" icon_color="#EF4444" %}
-{% elif rec.rec_type == 'skill_gap' %}
-  {% with border_color="#A855F7" icon_bg="rgba(168,85,247,0.15)" icon_color="#A855F7" %}
-{% elif rec.rec_type == 'habit' %}
-  {% with border_color="#F59E0B" icon_bg="rgba(245,158,11,0.15)" icon_color="#F59E0B" %}
-{% elif rec.rec_type == 'schedule' %}
-  {% with border_color="#06B6D4" icon_bg="rgba(6,182,212,0.15)" icon_color="#06B6D4" %}
-{% else %}
-  {% with border_color="#22C55E" icon_bg="rgba(34,197,94,0.15)" icon_color="#22C55E" %}
-{% endif %}
-<div class="gp-card mb-2 {% if rec.is_read %}opacity-60{% endif %}" style="border-left:3px solid {{ border_color }}">
+<div class="gp-card mb-2 {% if rec.is_read %}opacity-75{% endif %}"
+     style="border-left: 3px solid {% if rec.rec_type == 'deadline' %}#EF4444{% elif rec.rec_type == 'skill_gap' %}#A855F7{% elif rec.rec_type == 'habit' %}#F59E0B{% elif rec.rec_type == 'schedule' %}#06B6D4{% else %}#22C55E{% endif %}">
   <div class="d-flex align-items-start gap-3">
-    <div class="gp-rec-icon" style="background:{{ icon_bg }};color:{{ icon_color }}">
+    <div class="gp-rec-icon"
+         style="background:{% if rec.rec_type == 'deadline' %}rgba(239,68,68,0.15){% elif rec.rec_type == 'skill_gap' %}rgba(168,85,247,0.15){% elif rec.rec_type == 'habit' %}rgba(245,158,11,0.15){% elif rec.rec_type == 'schedule' %}rgba(6,182,212,0.15){% else %}rgba(34,197,94,0.15){% endif %};
+               color:{% if rec.rec_type == 'deadline' %}#EF4444{% elif rec.rec_type == 'skill_gap' %}#A855F7{% elif rec.rec_type == 'habit' %}#F59E0B{% elif rec.rec_type == 'schedule' %}#06B6D4{% else %}#22C55E{% endif %}">
       <i class="ti {{ rec.icon }}"></i>
     </div>
     <div style="flex:1">
@@ -33,21 +25,21 @@
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="gp-badge gp-badge-gray">{{ rec.get_rec_type_display }}</span>
         <span class="text-muted-sm">{{ rec.generated_at|date:"d M, H:i" }}</span>
-        {% if rec.is_read %}<span class="gp-badge gp-badge-green">Read</span>{% endif %}
+        {% if rec.is_actioned %}<span class="gp-badge gp-badge-green">Actioned</span>
+        {% elif rec.is_read %}<span class="gp-badge gp-badge-gray">Read</span>{% endif %}
       </div>
     </div>
     <div style="font-size:11px;color:var(--gp-text-muted);text-align:right;flex-shrink:0">
       #{{ rec.rank }}<br>
-      <span style="color:{{ icon_color }}">{{ rec.confidence|floatformat:0 }}%</span>
+      <span style="color:var(--gp-purple)">{{ rec.confidence|floatformat:0 }}%</span>
     </div>
   </div>
 </div>
-{% endwith %}
 {% empty %}
 <div class="gp-card text-center py-4">
   <i class="ti ti-bulb" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
   <div class="fw-600 mb-1">No recommendations yet</div>
-  <div class="text-muted-sm mb-3">Generate personalised insights based on your activity data.</div>
+  <div class="text-muted-sm mb-3">Generate personalised insights based on your activity and goals.</div>
   <a href="{% url 'goals:generate_recs' %}" class="btn btn-primary btn-sm rounded-pill">
     <i class="ti ti-cpu"></i> Generate recommendations
   </a>
