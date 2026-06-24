@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: growthpath
+    runtime: python
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    startCommand: "python manage.py migrate --noinput && gunicorn growthpath.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+    healthCheckPath: /accounts/login/
+
+  - type: worker
+    name: growthpath-worker
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A growthpath worker --loglevel=info --concurrency=2"
+    envVars:
+      - key: SECRET_KEY
+        fromService:
+          name: growthpath
+          type: web
+          envVarKey: SECRET_KEY
