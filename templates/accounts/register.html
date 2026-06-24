@@ -48,6 +48,14 @@
     .gp-divider { border: none; border-top: 1px solid var(--login-border); margin: 24px 0; }
     .gp-error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); border-radius: 9px; padding: 8px 12px; font-size: 13px; color: #EF4444; margin-top: 4px; }
     .gp-section { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--login-ph); margin: 20px 0 12px; }
+    .gp-pw-wrap { position: relative; }
+    .gp-pw-wrap .gp-input { padding-right: 40px; }
+    .gp-pw-eye {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--login-ph);
+      font-size: 17px; padding: 0; line-height: 1; transition: color .15s;
+    }
+    .gp-pw-eye:hover { color: var(--login-purple); }
     .gp-toggle-login { position: fixed; top: 16px; right: 16px; background: var(--login-card); border: 1px solid var(--login-border); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 18px; color: var(--login-muted); transition: all .2s; z-index: 100; }
     .gp-toggle-login:hover { color: var(--login-purple); border-color: var(--login-purple); }
   </style>
@@ -120,12 +128,22 @@
         <p class="gp-section">Password</p>
         <div class="mb-3">
           <label class="gp-label">Password</label>
-          <input type="password" name="password1" class="gp-input" placeholder="••••••••" required>
+          <div class="gp-pw-wrap">
+            <input type="password" name="password1" id="id_password1" class="gp-input" placeholder="••••••••" required>
+            <button type="button" class="gp-pw-eye" onclick="togglePw('id_password1',this)" tabindex="-1" title="Show password">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
           {% if form.password1.errors %}<div class="gp-error">{{ form.password1.errors|join:", " }}</div>{% endif %}
         </div>
         <div class="mb-4">
           <label class="gp-label">Confirm password</label>
-          <input type="password" name="password2" class="gp-input" placeholder="••••••••" required>
+          <div class="gp-pw-wrap">
+            <input type="password" name="password2" id="id_password2" class="gp-input" placeholder="••••••••" required>
+            <button type="button" class="gp-pw-eye" onclick="togglePw('id_password2',this)" tabindex="-1" title="Show password">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
           {% if form.password2.errors %}<div class="gp-error">{{ form.password2.errors|join:", " }}</div>{% endif %}
         </div>
 
@@ -146,6 +164,12 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+  function togglePw(id, btn) {
+    var inp = document.getElementById(id);
+    var showing = inp.type === 'text';
+    inp.type = showing ? 'password' : 'text';
+    btn.querySelector('i').className = showing ? 'ti ti-eye' : 'ti ti-eye-off';
+  }
   (function() {
     function getTheme() { return localStorage.getItem('gp-theme') || 'dark'; }
     function applyIcon(theme) {

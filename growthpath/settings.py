@@ -210,7 +210,7 @@ JAZZMIN_SETTINGS = {
 
     'related_modal_active': True,
     'custom_css': None,
-    'custom_js': None,
+    'custom_js': 'js/admin_extras.js',
     'use_google_fonts_cdn': False,
     'show_ui_builder': False,
 
