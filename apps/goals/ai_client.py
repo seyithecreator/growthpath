@@ -1,6 +1,6 @@
 """
 apps/goals/ai_client.py
-Google Gemini integration for personalized recommendations and roadmaps.
+Groq AI integration for personalized recommendations and roadmaps.
 Falls back gracefully to rule-based engines when the key is missing or the
 API call fails — the app always works regardless of API availability.
 """
@@ -64,36 +64,34 @@ Rules:
 """
 
 
-class GeminiClient:
-    MODEL = 'gemini-2.0-flash'
+class GroqClient:
+    MODEL = 'llama-3.3-70b-versatile'
 
     def __init__(self):
-        self._model = None
+        self._client = None
 
     def _get_client(self):
-        if self._model is None:
-            from google import genai
-            self._model = genai.Client(api_key=settings.GEMINI_API_KEY)
-        return self._model
+        if self._client is None:
+            from groq import Groq
+            self._client = Groq(api_key=settings.GROQ_API_KEY)
+        return self._client
 
     def _call(self, prompt):
         client = self._get_client()
-        from google import genai as _genai
-        response = client.models.generate_content(
+        response = client.chat.completions.create(
             model=self.MODEL,
-            contents=prompt,
-            config=_genai.types.GenerateContentConfig(
-                response_mime_type='application/json',
-                temperature=0.75,
-            ),
+            messages=[{'role': 'user', 'content': prompt}],
+            response_format={'type': 'json_object'},
+            temperature=0.75,
         )
-        text = response.text.strip()
-        # Strip markdown fences if the model wraps the JSON
-        if text.startswith('```'):
-            text = text.split('```')[1]
-            if text.startswith('json'):
-                text = text[4:]
-        return json.loads(text)
+        text = response.choices[0].message.content.strip()
+        data = json.loads(text)
+        # Groq with json_object mode may wrap array in a key — unwrap if needed
+        if isinstance(data, dict):
+            for val in data.values():
+                if isinstance(val, list):
+                    return val
+        return data
 
     # ── Context builders ──────────────────────────────────────────────────────
 
@@ -208,10 +206,7 @@ class GeminiClient:
     # ── Public generation methods ─────────────────────────────────────────────
 
     def generate_recommendations(self, user):
-        """
-        Returns list of up to 5 dicts, or None on failure.
-        Each dict has: type, title, description, action_label, icon, confidence
-        """
+        """Returns list of up to 5 dicts, or None on failure."""
         try:
             context = self.build_user_context(user)
             prompt = RECOMMENDATION_PROMPT.format(context=context)
@@ -220,14 +215,11 @@ class GeminiClient:
                 raise ValueError('Expected non-empty JSON array')
             return data[:5]
         except Exception as exc:
-            logger.warning('Gemini recommendations failed: %s', exc)
+            logger.warning('Groq recommendations failed: %s', exc)
             return None
 
     def generate_roadmap(self, goal, user):
-        """
-        Returns list of 6-8 dicts, or None on failure.
-        Each dict has: title, description, order, days_from_start
-        """
+        """Returns list of 6-8 dicts, or None on failure."""
         try:
             total_days = max((goal.target_date - goal.start_date).days, 7)
             context = self.build_goal_context(goal, user)
@@ -255,5 +247,5 @@ class GeminiClient:
                 })
             return cleaned
         except Exception as exc:
-            logger.warning('Gemini roadmap failed: %s', exc)
+            logger.warning('Groq roadmap failed: %s', exc)
             return None

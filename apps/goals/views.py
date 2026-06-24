@@ -262,9 +262,9 @@ def generate_roadmap(request, pk):
     milestone_defs = None
 
     # ── Try Gemini first ──────────────────────────────────────────────────────
-    if settings.GEMINI_API_KEY:
-        from .ai_client import GeminiClient
-        raw = GeminiClient().generate_roadmap(goal, request.user)
+    if settings.GROQ_API_KEY:
+        from .ai_client import GroqClient
+        raw = GroqClient().generate_roadmap(goal, request.user)
         if raw:
             milestone_defs = []
             for m in raw:
@@ -316,9 +316,9 @@ def generate_recommendations(request, pk=None):
     count = 0
 
     # ── Try Gemini first ──────────────────────────────────────────────────────
-    if settings.GEMINI_API_KEY:
-        from .ai_client import GeminiClient
-        raw = GeminiClient().generate_recommendations(user)
+    if settings.GROQ_API_KEY:
+        from .ai_client import GroqClient
+        raw = GroqClient().generate_recommendations(user)
         if raw:
             # Clear old unread recommendations before saving fresh ones
             RecommendationRecord.objects.filter(user=user, is_read=False).delete()
