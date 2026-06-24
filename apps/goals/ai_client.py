@@ -65,24 +65,28 @@ Rules:
 
 
 class GeminiClient:
-    MODEL = 'gemini-1.5-flash'
+    MODEL = 'gemini-2.0-flash'
 
     def __init__(self):
         self._model = None
 
-    def _get_model(self):
+    def _get_client(self):
         if self._model is None:
-            import google.generativeai as genai
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self._model = genai.GenerativeModel(
-                self.MODEL,
-                generation_config={'response_mime_type': 'application/json', 'temperature': 0.75},
-            )
+            from google import genai
+            self._model = genai.Client(api_key=settings.GEMINI_API_KEY)
         return self._model
 
     def _call(self, prompt):
-        model = self._get_model()
-        response = model.generate_content(prompt)
+        client = self._get_client()
+        from google import genai as _genai
+        response = client.models.generate_content(
+            model=self.MODEL,
+            contents=prompt,
+            config=_genai.types.GenerateContentConfig(
+                response_mime_type='application/json',
+                temperature=0.75,
+            ),
+        )
         text = response.text.strip()
         # Strip markdown fences if the model wraps the JSON
         if text.startswith('```'):
