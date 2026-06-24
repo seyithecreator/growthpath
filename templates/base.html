@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="dark" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -13,6 +13,9 @@
   <!-- Tabler Icons -->
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+  <!-- Apply saved theme before CSS loads to prevent flash -->
+  <script>(function(){var t=localStorage.getItem('gp-theme')||'dark';document.documentElement.setAttribute('data-theme',t);document.documentElement.setAttribute('data-bs-theme',t);})();</script>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -36,6 +39,36 @@
       --gp-hero-to:     #4C1D95;
       --sidebar-w:      260px;
     }
+
+    /* ── Light theme overrides ───────────────────────────────────── */
+    [data-theme="light"] {
+      --gp-bg:          #F8F7FF;
+      --gp-surface:     #FFFFFF;
+      --gp-surface-2:   #F3F0FF;
+      --gp-border:      #E4DFFF;
+      --gp-purple:      #7C3AED;
+      --gp-purple-dark: #6D28D9;
+      --gp-purple-dim:  #EDE9FE;
+      --gp-text:        #1A1033;
+      --gp-text-muted:  #6B7280;
+      --gp-hero-from:   #4C1D95;
+      --gp-hero-to:     #7C3AED;
+    }
+    [data-theme="light"] .gp-nav-section { color: #C4B5FD; }
+    [data-theme="light"] .gp-form-control::placeholder { color: #C4B5FD; }
+    [data-theme="light"] .btn-outline-secondary { color: #6B7280; }
+    [data-theme="light"] .btn-close { filter: none; }
+    [data-theme="light"] a { color: var(--gp-purple); }
+    [data-theme="light"] a:hover { color: var(--gp-purple-dark); }
+
+    /* ── Theme toggle button ─────────────────────────────────────── */
+    .gp-theme-btn {
+      background: none; border: 1px solid var(--gp-border); border-radius: 8px;
+      color: var(--gp-text-muted); padding: 5px 9px; cursor: pointer;
+      font-size: 16px; line-height: 1; transition: all .2s; margin-left: auto;
+      flex-shrink: 0;
+    }
+    .gp-theme-btn:hover { background: var(--gp-surface-2); color: var(--gp-purple); border-color: var(--gp-purple); }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -277,6 +310,9 @@
   <div class="gp-topbar d-md-none">
     <div class="gp-logo"><i class="ti ti-trending-up"></i></div>
     <div class="gp-topbar-title">GrowthPath</div>
+    <button class="gp-toggle-btn btn p-0 border-0 bg-transparent me-1" aria-label="Toggle theme" title="Toggle light/dark">
+      <i class="ti gp-theme-icon fs-5" data-size="fs-5" style="color:var(--gp-text-muted)"></i>
+    </button>
     <button class="btn p-0 border-0 bg-transparent" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-label="Menu">
       <i class="ti ti-menu-2 fs-4" style="color:var(--gp-text-muted)"></i>
     </button>
@@ -288,6 +324,9 @@
     <div class="gp-sidebar-logo">
       <div class="logo-mark"><i class="ti ti-trending-up"></i></div>
       <div class="logo-text">GrowthPath</div>
+      <button class="gp-toggle-btn gp-theme-btn" aria-label="Toggle theme" title="Toggle light/dark">
+        <i class="ti gp-theme-icon"></i>
+      </button>
     </div>
     {% include "partials/nav_links.html" %}
     <div class="mt-auto px-3 pt-3" style="border-top:1px solid var(--gp-border)">
@@ -353,5 +392,30 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   {% block extra_js %}{% endblock %}
+
+  <script>
+  (function gpTheme() {
+    function getTheme() { return localStorage.getItem('gp-theme') || 'dark'; }
+    function applyIcons(theme) {
+      document.querySelectorAll('.gp-theme-icon').forEach(function(el) {
+        var size = el.dataset.size || '';
+        el.className = 'ti ' + (theme === 'dark' ? 'ti-moon' : 'ti-sun') + (size ? ' ' + size : '');
+      });
+    }
+    function toggle() {
+      var next = getTheme() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      document.documentElement.setAttribute('data-bs-theme', next);
+      localStorage.setItem('gp-theme', next);
+      applyIcons(next);
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      applyIcons(getTheme());
+      document.querySelectorAll('.gp-toggle-btn').forEach(function(btn) {
+        btn.addEventListener('click', toggle);
+      });
+    });
+  })();
+  </script>
 </body>
 </html>
