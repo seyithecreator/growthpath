@@ -83,9 +83,9 @@ class UserSkillAdmin(admin.ModelAdmin):
 
     @admin.display(description='Gap')
     def gap_display(self, obj):
-        gap = obj.gap
+        gap = float(obj.gap)
         colour = '#EF4444' if gap > 30 else '#EAB308' if gap > 15 else '#22C55E'
-        return format_html('<span style="color:{};font-weight:600">{:.0f} pts</span>', colour, gap)
+        return format_html('<span style="color:{};font-weight:600">{} pts</span>', colour, round(gap))
 
 
 @admin.register(SkillScoreHistory)
