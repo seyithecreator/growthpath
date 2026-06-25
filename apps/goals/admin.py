@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Goal, Milestone
+from apps.activities.models import ActivityLog
 
 
 PRIORITY_COLOURS = {'critical': '#EF4444', 'high': '#F97316', 'medium': '#EAB308', 'low': '#6B7280'}
@@ -14,6 +15,27 @@ class MilestoneInline(admin.TabularInline):
     readonly_fields = ('completed_at',)
 
 
+class ActivityLogInline(admin.TabularInline):
+    model = ActivityLog
+    extra = 0
+    fields = ('milestone', 'activity_type', 'duration_minutes', 'goal_progress_delta',
+              'productivity_score', 'started_at')
+    readonly_fields = ('started_at',)
+    ordering = ('-started_at',)
+    show_change_link = True
+    verbose_name = 'Session'
+    verbose_name_plural = 'Daily Activity Log'
+    can_delete = True
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'milestone':
+            goal_id = request.resolver_match.kwargs.get('object_id')
+            if goal_id:
+                from .models import Milestone
+                kwargs['queryset'] = Milestone.objects.filter(goal_id=goal_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Goal)
 class GoalAdmin(admin.ModelAdmin):
     list_display = ('title', 'user', 'category_badge', 'priority_badge', 'status_badge',
@@ -25,9 +47,9 @@ class GoalAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at', 'completed_at')
     list_select_related = ('user',)
     list_per_page = 25
-    inlines = [MilestoneInline]
+    inlines = [MilestoneInline, ActivityLogInline]
     fieldsets = (
-        (None, {'fields': ('user', 'title', 'description', 'category', 'priority', 'status')}),
+        (None, {'fields': ('user', 'title', 'description', 'category', 'priority', 'status', 'skill')}),
         ('Metrics', {'fields': ('success_metric', 'target_value', 'current_value')}),
         ('Dates', {'fields': ('start_date', 'target_date', 'completed_at')}),
         ('AI Metadata', {'fields': ('tags', 'notes'), 'classes': ('collapse',)}),

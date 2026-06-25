@@ -46,6 +46,12 @@ class ActivityLog(models.Model):
         null=True, blank=True,
         related_name='activity_logs'
     )
+    milestone = models.ForeignKey(
+        'goals.Milestone',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='activity_logs'
+    )
     skill = models.ForeignKey(
         'skills.UserSkill',
         on_delete=models.SET_NULL,

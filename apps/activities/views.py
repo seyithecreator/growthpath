@@ -1,13 +1,10 @@
 import json
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
-from django.contrib import messages
 from itertools import groupby
 
 from .models import ActivityLog, ProductivitySnapshot
-from apps.goals.models import Goal
-from apps.skills.models import UserSkill
 
 
 ACTIVITY_TYPE_ICONS = {
@@ -27,37 +24,6 @@ ACTIVITY_TYPE_ICONS = {
 def activity_log(request):
     user = request.user
     today = timezone.now().date()
-
-    if request.method == 'POST':
-        title = request.POST.get('title', '').strip()
-        activity_type = request.POST.get('activity_type', 'study')
-        duration = request.POST.get('duration_minutes', '30')
-        productivity = request.POST.get('productivity_score', '3')
-        focus = request.POST.get('focus_level', '3')
-        goal_id = request.POST.get('goal_id') or None
-        outcome = request.POST.get('outcome_notes', '')
-
-        if title:
-            try:
-                goal_obj = Goal.objects.get(pk=goal_id, user=user) if goal_id else None
-            except Goal.DoesNotExist:
-                goal_obj = None
-
-            started_at = timezone.now()
-            ActivityLog.objects.create(
-                user=user,
-                title=title,
-                activity_type=activity_type,
-                duration_minutes=int(duration),
-                productivity_score=int(productivity),
-                focus_level=int(focus),
-                outcome_notes=outcome,
-                goal=goal_obj,
-                started_at=started_at,
-                ended_at=started_at + timezone.timedelta(minutes=int(duration)),
-            )
-            messages.success(request, 'Activity logged.')
-        return redirect('activities:log')
 
     # Recent logs (last 30 days), grouped by date
     logs = list(
@@ -95,15 +61,10 @@ def activity_log(request):
             cursor += timezone.timedelta(days=1)
         calendar_weeks.append(week)
 
-    active_goals = Goal.objects.filter(user=user, status='active')
-    activity_types = ActivityLog.ACTIVITY_TYPE_CHOICES
-
     return render(request, 'activities/log.html', {
         'grouped_logs': grouped_logs,
         'calendar_weeks': calendar_weeks,
         'heatmap_data': json.dumps(heatmap_data),
-        'active_goals': active_goals,
-        'activity_types': activity_types,
         'activity_type_icons': ACTIVITY_TYPE_ICONS,
         'active_nav': 'activities',
         'today': today,

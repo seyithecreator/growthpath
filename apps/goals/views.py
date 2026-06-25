@@ -132,7 +132,7 @@ def goal_list(request):
 @login_required
 def goal_create(request):
     if request.method == 'POST':
-        form = GoalForm(request.POST)
+        form = GoalForm(request.POST, user=request.user)
         if form.is_valid():
             goal = form.save(commit=False)
             goal.user = request.user
@@ -140,7 +140,7 @@ def goal_create(request):
             messages.success(request, f'Goal "{goal.title}" created. Generate a roadmap to get started!')
             return redirect('goals:detail', pk=goal.pk)
     else:
-        form = GoalForm()
+        form = GoalForm(user=request.user)
     return render(request, 'goals/form.html', {'form': form, 'action': 'Create'})
 
 
@@ -148,7 +148,7 @@ def goal_create(request):
 def goal_detail(request, pk):
     goal = get_object_or_404(Goal, pk=pk, user=request.user)
     milestones = goal.milestones.all()
-    activity_logs = goal.activity_logs.order_by('-started_at')[:10]
+    activity_logs = goal.activity_logs.select_related('milestone').order_by('-started_at')[:20]
     completed_count = milestones.filter(is_completed=True).count()
     total_count = milestones.count()
 
@@ -159,21 +159,100 @@ def goal_detail(request, pk):
         'milestone_form': MilestoneForm(),
         'completed_milestone_count': completed_count,
         'total_milestone_count': total_count,
+        'activity_types': ActivityLog.ACTIVITY_TYPE_CHOICES,
     }
     return render(request, 'goals/detail.html', context)
+
+
+@login_required
+def goal_log_activity(request, pk):
+    """AJAX endpoint — log a session tied to a specific milestone and advance goal progress."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+
+    milestone_id = request.POST.get('milestone_id')
+    if not milestone_id:
+        return JsonResponse({'error': 'Select a milestone to log this session against.'}, status=400)
+
+    try:
+        milestone = Milestone.objects.get(pk=milestone_id, goal=goal)
+    except Milestone.DoesNotExist:
+        return JsonResponse({'error': 'Invalid milestone.'}, status=400)
+
+    activity_type = request.POST.get('activity_type', 'study')
+    duration = max(1, int(request.POST.get('duration_minutes', 30) or 30))
+    productivity = int(request.POST.get('productivity_score', 3) or 3)
+    focus = int(request.POST.get('focus_level', 3) or 3)
+    outcome = request.POST.get('outcome_notes', '')
+
+    try:
+        progress_delta = float(request.POST.get('goal_progress_delta', 0) or 0)
+    except (ValueError, TypeError):
+        progress_delta = 0.0
+
+    try:
+        skill_delta = float(request.POST.get('skill_score_delta', 0) or 0)
+    except (ValueError, TypeError):
+        skill_delta = 0.0
+
+    started_at = timezone.now()
+    log = ActivityLog.objects.create(
+        user=request.user,
+        goal=goal,
+        milestone=milestone,
+        skill=goal.skill,
+        title=milestone.title,
+        activity_type=activity_type,
+        duration_minutes=duration,
+        productivity_score=productivity,
+        focus_level=focus,
+        outcome_notes=outcome,
+        goal_progress_delta=progress_delta,
+        skill_score_delta=skill_delta,
+        started_at=started_at,
+        ended_at=started_at + timezone.timedelta(minutes=duration),
+    )
+
+    if progress_delta:
+        goal.current_value = min(goal.current_value + progress_delta, goal.target_value)
+        if goal.current_value >= goal.target_value:
+            goal.mark_completed()
+        else:
+            goal.save()
+
+    if goal.skill and skill_delta:
+        new_skill_score = min(goal.skill.current_score + skill_delta, 100)
+        goal.skill.update_score(new_skill_score)
+
+    return JsonResponse({
+        'success': True,
+        'progress': goal.progress_percentage,
+        'status': goal.status,
+        'log': {
+            'id': log.pk,
+            'milestone_title': milestone.title,
+            'activity_type_display': log.get_activity_type_display(),
+            'duration_minutes': log.duration_minutes,
+            'productivity_score': log.productivity_score,
+            'goal_progress_delta': log.goal_progress_delta,
+            'started_at': log.started_at.strftime('%d %b, %H:%M'),
+        },
+    })
 
 
 @login_required
 def goal_update(request, pk):
     goal = get_object_or_404(Goal, pk=pk, user=request.user)
     if request.method == 'POST':
-        form = GoalForm(request.POST, instance=goal)
+        form = GoalForm(request.POST, instance=goal, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Goal updated.')
             return redirect('goals:detail', pk=pk)
     else:
-        form = GoalForm(instance=goal)
+        form = GoalForm(instance=goal, user=request.user)
     return render(request, 'goals/form.html', {'form': form, 'action': 'Update', 'goal': goal})
 
 

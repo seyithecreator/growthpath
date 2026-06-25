@@ -35,7 +35,6 @@
   </div>
   <div class="text-muted-sm mt-1">Metric: {{ goal.success_metric }}</div>
 
-  <!-- Manual quick update (fallback when no milestones) -->
   {% if not total_milestone_count %}
   <div class="mt-3 d-flex gap-2 align-items-center">
     {% csrf_token %}
@@ -46,14 +45,14 @@
   {% endif %}
 </div>
 
-<!-- Milestones -->
+<!-- Milestones / Roadmap -->
 <div class="gp-card mb-3" id="milestoneCard">
   <div class="d-flex align-items-center mb-3">
     <div class="gp-card-title mb-0"><i class="ti ti-check"></i> Roadmap / Milestones</div>
     <button id="generateRoadmapBtn" onclick="generateRoadmap({{ goal.pk }})"
             class="btn btn-sm rounded-pill ms-auto"
             style="font-size:11px;border:1px solid var(--gp-purple);color:var(--gp-purple);background:transparent">
-      <i class="ti ti-cpu"></i> Generate roadmap
+      <i class="ti ti-cpu"></i> {% if total_milestone_count %}Regenerate{% else %}Generate roadmap{% endif %}
     </button>
   </div>
   <div id="milestoneList">
@@ -78,31 +77,151 @@
     {% empty %}
     <div class="text-center py-4 text-muted-sm" id="noMilestones">
       <i class="ti ti-map" style="font-size:32px;display:block;margin-bottom:8px;color:var(--gp-border)"></i>
-      No milestones yet. Click <strong>Generate roadmap</strong> to let the AI create a step-by-step plan for this goal.
+      No milestones yet. Click <strong>Generate roadmap</strong> to create a step-by-step plan.
     </div>
     {% endfor %}
   </div>
 </div>
 
-<!-- Recent activity -->
-{% if activity_logs %}
+<!-- Daily Activity Log -->
 <div class="gp-card mb-3">
-  <div class="gp-card-title"><i class="ti ti-activity"></i> Recent Activity</div>
-  {% for log in activity_logs %}
-  <div class="d-flex gap-2 py-2" style="border-bottom:1px solid var(--gp-border)">
-    <div class="gp-log-dot" style="background:var(--gp-purple)"></div>
-    <div style="flex:1;font-size:13px">
-      <div class="fw-600">{{ log.title }}</div>
-      <div class="text-muted-sm">{{ log.started_at|date:"d M, H:i" }} · {{ log.duration_minutes }} min · {{ log.get_productivity_score_display }}</div>
+  <div class="gp-card-title"><i class="ti ti-calendar-check"></i> Daily Activity Log</div>
+
+  {% if total_milestone_count %}
+
+  {# ── Skill context banner ── #}
+  {% if goal.skill %}
+  <div class="d-flex align-items-center gap-2 mb-3 px-3 py-2" style="background:var(--gp-surface-2);border-radius:8px;border:1px solid var(--gp-border)">
+    <i class="ti ti-brain" style="color:var(--gp-purple);font-size:18px;flex-shrink:0"></i>
+    <div style="flex:1;font-size:12px">
+      <span class="fw-600">{{ goal.skill.domain.name }}</span>
+      <span class="text-muted-sm ms-2">Skill score: {{ goal.skill.current_score }}/100 → target {{ goal.skill.target_score }}</span>
+    </div>
+    <div style="width:80px;background:var(--gp-border);border-radius:99px;height:5px;overflow:hidden">
+      <div style="width:{{ goal.skill.current_score }}%;background:var(--gp-purple);height:100%;border-radius:99px"></div>
     </div>
   </div>
-  {% endfor %}
-  <div class="text-center mt-2">
-    <a href="{% url 'activities:log' %}" class="btn btn-sm rounded-pill"
-       style="font-size:11px;border:1px solid var(--gp-border);color:var(--gp-text-muted)">Log new activity</a>
+  {% endif %}
+
+  {# ── Log session form ── #}
+  <p class="text-muted-sm mb-3" style="font-size:12px">
+    Select a milestone you worked on, then record your session details.
+  </p>
+  <form id="activityForm" onsubmit="logActivity(event)">
+    {% csrf_token %}
+
+    <div class="mb-3">
+      <label class="gp-form-label">Which milestone did you work on? <span style="color:var(--gp-purple)">*</span></label>
+      <select name="milestone_id" id="milestoneSelect" class="gp-form-control" required>
+        <option value="">— Select a milestone —</option>
+        {% for m in milestones %}
+        <option value="{{ m.pk }}" {% if m.is_completed %}style="color:var(--gp-text-muted)"{% endif %}>
+          {{ m.title }}{% if m.is_completed %} ✓{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="gp-form-label">Session type</label>
+        <select name="activity_type" class="gp-form-control">
+          {% for val, label in activity_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="gp-form-label">Duration (mins)</label>
+        <input type="number" name="duration_minutes" class="gp-form-control" value="30" min="1" max="720">
+      </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <label class="gp-form-label">Progress added <span class="text-muted-sm">({{ goal.success_metric }})</span></label>
+        <input type="number" name="goal_progress_delta" class="gp-form-control"
+               value="0" min="0" max="{{ goal.target_value }}" step="0.1">
+        <div class="text-muted-sm mt-1" style="font-size:11px">Current: {{ goal.current_value }}/{{ goal.target_value }}</div>
+      </div>
+      <div class="col-6">
+        <label class="gp-form-label">Productivity</label>
+        <select name="productivity_score" class="gp-form-control">
+          <option value="5">5 — Highly productive</option>
+          <option value="4">4 — Productive</option>
+          <option value="3" selected>3 — Neutral</option>
+          <option value="2">2 — Unproductive</option>
+          <option value="1">1 — Very unproductive</option>
+        </select>
+      </div>
+    </div>
+
+    {% if goal.skill %}
+    <div class="mb-3">
+      <label class="gp-form-label">Skill score boost <span class="text-muted-sm">({{ goal.skill.domain.name }})</span></label>
+      <input type="number" name="skill_score_delta" class="gp-form-control" value="0" min="0" max="20" step="0.5">
+      <div class="text-muted-sm mt-1" style="font-size:11px">How much did this session improve your {{ goal.skill.domain.name }} score? (0–20)</div>
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+      <label class="gp-form-label">Outcome notes</label>
+      <input type="text" name="outcome_notes" class="gp-form-control" placeholder="What did you achieve or learn this session?">
+    </div>
+
+    <button type="submit" id="activitySubmitBtn" class="btn btn-primary rounded-pill px-4">
+      <i class="ti ti-plus"></i> Log session
+    </button>
+    <span id="activityError" style="display:none;color:var(--gp-red);font-size:12px;margin-left:10px"></span>
+  </form>
+
+  {% else %}
+
+  {# ── No milestones — prompt to generate roadmap ── #}
+  <div class="text-center py-4">
+    <i class="ti ti-map-route" style="font-size:36px;color:var(--gp-border);display:block;margin-bottom:8px"></i>
+    <div class="fw-600 mb-1">Generate a roadmap first</div>
+    <div class="text-muted-sm mb-3" style="max-width:280px;margin:0 auto 12px">
+      Your goal needs a step-by-step roadmap before you can log activities. Each session will be tied to a specific milestone.
+    </div>
+    <button onclick="generateRoadmap({{ goal.pk }})" id="generateRoadmapBtnAlt"
+            class="btn btn-sm rounded-pill px-4"
+            style="background:var(--gp-purple);color:#fff;font-size:12px">
+      <i class="ti ti-cpu"></i> Generate roadmap
+    </button>
+  </div>
+
+  {% endif %}
+
+  {# ── Logged sessions list ── #}
+  <div id="activityList" class="mt-4">
+    {% if activity_logs %}
+    <div class="text-muted-sm fw-600 mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Logged Sessions</div>
+    {% for log in activity_logs %}
+    <div class="d-flex gap-2 py-2 activity-row" style="border-bottom:1px solid var(--gp-border)">
+      <div class="gp-log-dot" style="background:var(--gp-purple);flex-shrink:0;margin-top:4px"></div>
+      <div style="flex:1;font-size:13px">
+        <div class="fw-600">{{ log.milestone.title|default:log.title }}</div>
+        <div class="text-muted-sm">
+          {{ log.get_activity_type_display }} · {{ log.duration_minutes }} min · {{ log.started_at|date:"d M, H:i" }}
+        </div>
+        {% if log.outcome_notes %}
+        <div class="text-muted-sm" style="font-size:11px;font-style:italic">{{ log.outcome_notes|truncatechars:60 }}</div>
+        {% endif %}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        {% if log.goal_progress_delta %}
+        <div style="font-size:12px;font-weight:600;color:var(--gp-green)">+{{ log.goal_progress_delta }}</div>
+        {% endif %}
+        <div style="font-size:11px">
+          {% for i in "12345" %}{% if forloop.counter <= log.productivity_score %}<span style="color:var(--gp-amber)">★</span>{% else %}<span style="color:var(--gp-border)">★</span>{% endif %}{% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
   </div>
 </div>
-{% endif %}
 
 {% endwith %}
 {% endblock %}
@@ -133,8 +252,6 @@ function toggleMilestone(btn) {
     btn.disabled = false;
     var completed = data.milestone_completed;
     var icon = btn.querySelector('i');
-
-    // Update tick icon and styles
     if (completed) {
       btn.classList.add('completed');
       icon.className = 'ti ti-circle-check';
@@ -142,8 +259,6 @@ function toggleMilestone(btn) {
       btn.classList.remove('completed');
       icon.className = 'ti ti-circle';
     }
-
-    // Toggle strikethrough on title
     var row = document.getElementById('milestone-' + mid);
     var title = row.querySelector('.milestone-title');
     if (completed) {
@@ -153,23 +268,23 @@ function toggleMilestone(btn) {
       title.classList.remove('text-decoration-line-through');
       title.style.color = '';
     }
-
-    // Update progress bar
+    // Sync milestone dropdown option
+    var opt = document.querySelector('#milestoneSelect option[value="' + mid + '"]');
+    if (opt) {
+      opt.textContent = opt.textContent.replace(' ✓', '') + (completed ? ' ✓' : '');
+      opt.style.color = completed ? 'var(--gp-text-muted)' : '';
+    }
     document.getElementById('mainProgressFill').style.width = data.progress + '%';
     document.getElementById('progressLabel').textContent =
       data.progress + '% · ' + data.completed_count + '/' + data.milestone_count + ' milestones';
-
-    if (data.goal_status === 'completed') {
-      setTimeout(() => location.reload(), 800);
-    }
+    if (data.goal_status === 'completed') { setTimeout(() => location.reload(), 800); }
   })
   .catch(() => { btn.disabled = false; });
 }
 
 function generateRoadmap(goalId) {
-  var btn = document.getElementById('generateRoadmapBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="ti ti-loader"></i> Generating…';
+  var btn = document.getElementById('generateRoadmapBtn') || document.getElementById('generateRoadmapBtnAlt');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader"></i> Generating…'; }
 
   fetch('/goals/' + goalId + '/generate-roadmap/', {
     method: 'POST',
@@ -177,29 +292,11 @@ function generateRoadmap(goalId) {
   })
   .then(r => r.json())
   .then(data => {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-cpu"></i> Regenerate';
-
-    var list = document.getElementById('milestoneList');
-    list.innerHTML = '';
-    data.milestones.forEach(function(m) {
-      list.innerHTML += '<div class="d-flex align-items-start gap-2 py-2 milestone-row" id="milestone-' + m.id + '" style="border-bottom:1px solid var(--gp-border)">' +
-        '<button class="gp-milestone-tick" data-milestone-id="' + m.id + '" data-goal-id="' + goalId + '" onclick="toggleMilestone(this)" aria-label="Toggle milestone">' +
-        '<i class="ti ti-circle"></i></button>' +
-        '<div style="flex:1;font-size:13px">' +
-        '<div class="fw-600 milestone-title">' + m.title + '</div>' +
-        '<div class="text-muted-sm">' + (m.description || '') + '</div>' +
-        '<div class="text-muted-sm">Target: ' + m.target_date + '</div>' +
-        '</div></div>';
-    });
-
-    // Reset progress since milestones all uncompleted
-    document.getElementById('mainProgressFill').style.width = '0%';
-    document.getElementById('progressLabel').textContent = '0% · 0/' + data.count + ' milestones';
+    // Reload to re-render milestone picker and activity form
+    location.reload();
   })
   .catch(() => {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-cpu"></i> Generate roadmap';
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-cpu"></i> Generate roadmap'; }
     alert('Failed to generate roadmap. Please try again.');
   });
 }
@@ -218,6 +315,87 @@ function updateProgress() {
       document.getElementById('progressLabel').textContent = data.progress + '%';
       if (data.status === 'completed') location.reload();
     }
+  });
+}
+
+function logActivity(event) {
+  event.preventDefault();
+  var btn = document.getElementById('activitySubmitBtn');
+  var errEl = document.getElementById('activityError');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Logging…';
+  errEl.style.display = 'none';
+
+  var form = document.getElementById('activityForm');
+  var data = new FormData(form);
+
+  fetch('{% url "goals:log_activity" goal.pk %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF},
+    body: data,
+  })
+  .then(r => r.json())
+  .then(function(resp) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus"></i> Log session';
+
+    if (!resp.success) {
+      errEl.textContent = resp.error || 'Failed to log session.';
+      errEl.style.display = 'inline';
+      return;
+    }
+
+    // Update progress bar
+    document.getElementById('mainProgressFill').style.width = resp.progress + '%';
+    var labelEl = document.getElementById('progressLabel');
+    var milestonePart = labelEl.textContent.includes('·') ? ' · ' + labelEl.textContent.split('· ')[1] : '';
+    labelEl.textContent = resp.progress + '%' + milestonePart;
+
+    // Prepend new activity row
+    var log = resp.log;
+    var stars = '';
+    for (var i = 1; i <= 5; i++) {
+      stars += i <= log.productivity_score
+        ? '<span style="color:var(--gp-amber)">★</span>'
+        : '<span style="color:var(--gp-border)">★</span>';
+    }
+    var deltaHtml = log.goal_progress_delta
+      ? '<div style="font-size:12px;font-weight:600;color:var(--gp-green)">+' + log.goal_progress_delta + '</div>'
+      : '';
+
+    var html = '<div class="d-flex gap-2 py-2 activity-row" style="border-bottom:1px solid var(--gp-border)">' +
+      '<div class="gp-log-dot" style="background:var(--gp-purple);flex-shrink:0;margin-top:4px"></div>' +
+      '<div style="flex:1;font-size:13px">' +
+      '<div class="fw-600">' + log.milestone_title + '</div>' +
+      '<div class="text-muted-sm">' + log.activity_type_display + ' · ' + log.duration_minutes + ' min · ' + log.started_at + '</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' + deltaHtml +
+      '<div style="font-size:11px">' + stars + '</div>' +
+      '</div></div>';
+
+    var list = document.getElementById('activityList');
+    var header = list.querySelector('.text-muted-sm.fw-600');
+    if (!header) {
+      list.innerHTML = '<div class="text-muted-sm fw-600 mb-2" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Logged Sessions</div>' + html;
+    } else {
+      header.insertAdjacentHTML('afterend', html);
+    }
+
+    // Reset form (keep type/productivity)
+    form.querySelector('[name="milestone_id"]').value = '';
+    form.querySelector('[name="outcome_notes"]').value = '';
+    form.querySelector('[name="goal_progress_delta"]').value = '0';
+    form.querySelector('[name="duration_minutes"]').value = '30';
+    var skillDeltaField = form.querySelector('[name="skill_score_delta"]');
+    if (skillDeltaField) skillDeltaField.value = '0';
+
+    if (resp.status === 'completed') { setTimeout(() => location.reload(), 800); }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-plus"></i> Log session';
+    errEl.textContent = 'Something went wrong. Please try again.';
+    errEl.style.display = 'inline';
   });
 }
 </script>

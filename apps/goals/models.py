@@ -53,6 +53,14 @@ class Goal(models.Model):
     target_date = models.DateField()
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    skill = models.ForeignKey(
+        'skills.UserSkill',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='goals',
+        help_text='Optional skill this goal is helping to improve'
+    )
+
     # AI metadata (stored as JSON for flexibility)
     tags = models.JSONField(default=list, blank=True)
     notes = models.TextField(blank=True)
