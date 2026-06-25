@@ -296,6 +296,54 @@ def complete_milestone(request, goal_pk, milestone_pk):
 
 
 @login_required
+def goal_milestone_chat(request, pk):
+    """AJAX endpoint — conversational AI assistant for milestone help."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    goal = get_object_or_404(Goal, pk=pk, user=request.user)
+    user_message = request.POST.get('message', '').strip()
+    if not user_message:
+        return JsonResponse({'error': 'Message is required.'}, status=400)
+
+    milestones = goal.milestones.all()
+    milestone_lines = '\n'.join(
+        f'  {"✓" if m.is_completed else "○"} {m.order}. {m.title}'
+        + (f' — {m.description}' if m.description else '')
+        for m in milestones
+    ) or '  (No milestones generated yet)'
+
+    system_prompt = f"""You are a supportive academic growth coach helping a student work through their goal.
+
+Goal: "{goal.title}"
+Category: {goal.get_category_display()}
+Success metric: {goal.success_metric}
+Progress: {goal.progress_percentage:.0f}% ({goal.days_remaining} days remaining)
+Description: {goal.description or 'N/A'}
+
+Roadmap milestones:
+{milestone_lines}
+
+Your role:
+- Help the student understand, break down, or get unstuck on any milestone
+- Give practical, encouraging, specific advice
+- If they're struggling, suggest concrete next steps they can take today
+- Keep responses concise (3–5 sentences max) and actionable
+- Don't repeat the goal/milestone list back to them unless asked"""
+
+    from django.conf import settings
+    if not getattr(settings, 'GROQ_API_KEY', None):
+        return JsonResponse({'response': "The AI assistant isn't configured yet. Ask your admin to add a GROQ_API_KEY."})
+
+    from .ai_client import GroqClient
+    reply = GroqClient().chat(system_prompt, user_message)
+    if not reply:
+        return JsonResponse({'response': "Sorry, I couldn't reach the AI right now. Please try again in a moment."})
+
+    return JsonResponse({'response': reply})
+
+
+@login_required
 def generate_roadmap(request, pk):
     """
     AJAX endpoint — generates milestone roadmap for a goal.

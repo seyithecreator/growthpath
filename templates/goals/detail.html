@@ -89,20 +89,6 @@
 
   {% if total_milestone_count %}
 
-  {# ── Skill context banner ── #}
-  {% if goal.skill %}
-  <div class="d-flex align-items-center gap-2 mb-3 px-3 py-2" style="background:var(--gp-surface-2);border-radius:8px;border:1px solid var(--gp-border)">
-    <i class="ti ti-brain" style="color:var(--gp-purple);font-size:18px;flex-shrink:0"></i>
-    <div style="flex:1;font-size:12px">
-      <span class="fw-600">{{ goal.skill.domain.name }}</span>
-      <span class="text-muted-sm ms-2">Skill score: {{ goal.skill.current_score }}/100 → target {{ goal.skill.target_score }}</span>
-    </div>
-    <div style="width:80px;background:var(--gp-border);border-radius:99px;height:5px;overflow:hidden">
-      <div style="width:{{ goal.skill.current_score }}%;background:var(--gp-purple);height:100%;border-radius:99px"></div>
-    </div>
-  </div>
-  {% endif %}
-
   {# ── Log session form ── #}
   <p class="text-muted-sm mb-3" style="font-size:12px">
     Pick the milestone you worked on and rate your confidence with it.
@@ -190,6 +176,36 @@
   </div>
 </div>
 
+<!-- AI Milestone Assistant -->
+<div class="gp-card mb-3">
+  <div class="d-flex align-items-center mb-2">
+    <div class="gp-card-title mb-0"><i class="ti ti-message-chatbot"></i> Milestone Assistant</div>
+    <span class="text-muted-sm ms-auto" style="font-size:11px">Powered by AI</span>
+  </div>
+  <p class="text-muted-sm mb-3" style="font-size:12px">
+    Stuck on a milestone? Ask the assistant for help, explanations, or next steps.
+  </p>
+
+  <!-- Chat messages -->
+  <div id="chatMessages" style="max-height:320px;overflow-y:auto;margin-bottom:12px">
+    <div class="chat-bubble chat-ai" id="chatWelcome">
+      Hi! I know your roadmap for <strong>{{ goal.title }}</strong>. Ask me anything — I can help you break down a milestone, suggest what to do next, or explain anything you're unsure about.
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="d-flex gap-2">
+    <input type="text" id="chatInput" class="gp-form-control"
+           placeholder="e.g. How do I get started with milestone 2?"
+           onkeydown="if(event.key==='Enter'){sendChat()}"
+           style="flex:1">
+    <button onclick="sendChat()" id="chatSendBtn"
+            class="btn btn-primary rounded-pill px-3" style="flex-shrink:0">
+      <i class="ti ti-send"></i>
+    </button>
+  </div>
+</div>
+
 {% endwith %}
 {% endblock %}
 
@@ -202,6 +218,37 @@
 }
 .gp-milestone-tick:hover { color: var(--gp-purple); }
 .gp-milestone-tick.completed { color: var(--gp-green); }
+.chat-bubble {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+.chat-user {
+  background: var(--gp-purple);
+  color: #fff;
+  margin-left: auto;
+  border-bottom-right-radius: 4px;
+}
+.chat-ai {
+  background: var(--gp-surface-2);
+  color: var(--gp-text);
+  border: 1px solid var(--gp-border);
+  border-bottom-left-radius: 4px;
+}
+.chat-typing {
+  background: var(--gp-surface-2);
+  border: 1px solid var(--gp-border);
+  border-bottom-left-radius: 4px;
+  color: var(--gp-text-muted);
+  font-size: 20px;
+  letter-spacing: 3px;
+  padding: 6px 14px;
+}
+#chatMessages { display: flex; flex-direction: column; }
 </style>
 <script>
 var CSRF = '{{ csrf_token }}';
@@ -359,6 +406,55 @@ function logActivity(event) {
     btn.innerHTML = '<i class="ti ti-plus"></i> Log session';
     errEl.textContent = 'Something went wrong. Please try again.';
     errEl.style.display = 'inline';
+  });
+}
+
+function sendChat() {
+  var input = document.getElementById('chatInput');
+  var messages = document.getElementById('chatMessages');
+  var sendBtn = document.getElementById('chatSendBtn');
+  var text = input.value.trim();
+  if (!text) return;
+
+  // Append user bubble
+  var userBubble = document.createElement('div');
+  userBubble.className = 'chat-bubble chat-user';
+  userBubble.textContent = text;
+  messages.appendChild(userBubble);
+  input.value = '';
+  sendBtn.disabled = true;
+
+  // Show typing indicator
+  var typing = document.createElement('div');
+  typing.className = 'chat-bubble chat-typing';
+  typing.id = 'chatTyping';
+  typing.textContent = '···';
+  messages.appendChild(typing);
+  messages.scrollTop = messages.scrollHeight;
+
+  fetch('{% url "goals:milestone_chat" goal.pk %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'message=' + encodeURIComponent(text),
+  })
+  .then(r => r.json())
+  .then(function(data) {
+    typing.remove();
+    sendBtn.disabled = false;
+    var aiBubble = document.createElement('div');
+    aiBubble.className = 'chat-bubble chat-ai';
+    aiBubble.textContent = data.response || 'Sorry, I could not get a response.';
+    messages.appendChild(aiBubble);
+    messages.scrollTop = messages.scrollHeight;
+  })
+  .catch(function() {
+    typing.remove();
+    sendBtn.disabled = false;
+    var errBubble = document.createElement('div');
+    errBubble.className = 'chat-bubble chat-ai';
+    errBubble.textContent = 'Something went wrong. Please try again.';
+    messages.appendChild(errBubble);
+    messages.scrollTop = messages.scrollHeight;
   });
 }
 </script>

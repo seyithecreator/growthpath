@@ -53,7 +53,7 @@ class GoalAdmin(admin.ModelAdmin):
     list_per_page = 25
     inlines = [MilestoneInline, ActivityLogInline]
     fieldsets = (
-        (None, {'fields': ('user', 'title', 'description', 'category', 'priority', 'status', 'skill')}),
+        (None, {'fields': ('user', 'title', 'description', 'category', 'priority', 'status')}),
         ('Metrics', {'fields': ('success_metric', 'target_value', 'current_value')}),
         ('Dates', {'fields': ('start_date', 'target_date', 'completed_at')}),
         ('AI Metadata', {'fields': ('tags', 'notes'), 'classes': ('collapse',)}),

@@ -209,6 +209,24 @@ class GroqClient:
 
     # ── Public generation methods ─────────────────────────────────────────────
 
+    def chat(self, system_prompt, user_message):
+        """Single-turn conversational call — returns plain text, no JSON mode."""
+        try:
+            client = self._get_client()
+            response = client.chat.completions.create(
+                model=self.MODEL,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message},
+                ],
+                temperature=0.7,
+                max_tokens=600,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.warning('Groq chat failed: %s', exc)
+            return None
+
     def generate_recommendations(self, user):
         """Returns list of up to 5 dicts, or None on failure."""
         try:
