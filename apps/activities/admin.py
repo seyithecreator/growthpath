@@ -24,7 +24,6 @@ class ActivityLogAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['goal'].required = True
         self.fields['goal'].empty_label = '— Select a goal (required) —'
-        self.fields['skill'].required = False
         # Pre-fill confidence_level from productivity_score
         if self.instance and self.instance.pk:
             self.fields['confidence_level'].initial = self.instance.productivity_score

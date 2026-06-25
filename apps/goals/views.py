@@ -193,7 +193,6 @@ def goal_log_activity(request, pk):
         user=request.user,
         goal=goal,
         milestone=milestone,
-        skill=goal.skill,
         title=milestone.title,
         activity_type='other',
         productivity_score=confidence,
