@@ -4,20 +4,18 @@ from django.utils.html import format_html
 from .models import ActivityLog, ProductivitySnapshot
 
 
-TYPE_COLOURS = {
-    'study':      '#3B82F6',
-    'exercise':   '#A855F7',
-    'reading':    '#22C55E',
-    'project':    '#F97316',
-    'assessment': '#EAB308',
-    'networking': '#06B6D4',
-    'reflection': '#EC4899',
-    'workshop':   '#8B5CF6',
-    'other':      '#6B7280',
-}
+CONFIDENCE_LABELS = {1: 'Not confident yet', 2: 'Struggling', 3: 'Getting there', 4: 'Confident', 5: 'Very confident'}
+CONFIDENCE_COLOURS = {1: '#EF4444', 2: '#F97316', 3: '#EAB308', 4: '#3B82F6', 5: '#22C55E'}
 
 
 class ActivityLogAdminForm(forms.ModelForm):
+    confidence_level = forms.ChoiceField(
+        choices=[(i, f'{i} — {CONFIDENCE_LABELS[i]}') for i in range(1, 6)],
+        initial=3,
+        label='Confidence level',
+        widget=forms.Select(attrs={'style': 'max-width:300px'}),
+    )
+
     class Meta:
         model = ActivityLog
         fields = '__all__'
@@ -27,6 +25,9 @@ class ActivityLogAdminForm(forms.ModelForm):
         self.fields['goal'].required = True
         self.fields['goal'].empty_label = '— Select a goal (required) —'
         self.fields['skill'].required = False
+        # Pre-fill confidence_level from productivity_score
+        if self.instance and self.instance.pk:
+            self.fields['confidence_level'].initial = self.instance.productivity_score
 
     def clean_goal(self):
         goal = self.cleaned_data.get('goal')
@@ -34,26 +35,29 @@ class ActivityLogAdminForm(forms.ModelForm):
             raise forms.ValidationError('Every activity must be linked to a goal.')
         return goal
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.productivity_score = int(self.cleaned_data.get('confidence_level', 3))
+        if commit:
+            instance.save()
+        return instance
+
 
 @admin.register(ActivityLog)
 class ActivityLogAdmin(admin.ModelAdmin):
     form = ActivityLogAdminForm
-    list_display = ('milestone_link', 'user', 'goal_link', 'type_badge', 'duration_display',
-                    'progress_delta_display', 'productivity_stars', 'started_at')
-    list_filter = ('goal', 'milestone', 'activity_type', 'productivity_score', 'focus_level')
-    search_fields = ('title', 'user__username', 'description', 'outcome_notes', 'goal__title', 'milestone__title')
+    list_display = ('milestone_link', 'user', 'goal_link', 'confidence_display', 'started_at')
+    list_filter = ('goal', 'milestone', 'productivity_score')
+    search_fields = ('title', 'user__username', 'outcome_notes', 'goal__title', 'milestone__title')
     ordering = ('-started_at',)
     date_hierarchy = 'started_at'
-    readonly_fields = ('logged_at', 'duration_minutes')
-    list_select_related = ('user', 'goal')
+    readonly_fields = ('logged_at', 'started_at')
+    list_select_related = ('user', 'goal', 'milestone')
     list_per_page = 30
     fieldsets = (
-        ('Goal (required)', {'fields': ('goal', 'milestone')}),
-        ('Activity', {'fields': ('user', 'title', 'description', 'activity_type')}),
-        ('Time', {'fields': ('started_at', 'ended_at', 'duration_minutes')}),
-        ('Progress', {'fields': ('goal_progress_delta', 'skill_score_delta')}),
-        ('Productivity', {'fields': ('productivity_score', 'focus_level', 'outcome_notes')}),
-        ('Other', {'fields': ('skill', 'tags', 'logged_at'), 'classes': ('collapse',)}),
+        ('Goal & Milestone (required)', {'fields': ('goal', 'milestone')}),
+        ('Session', {'fields': ('user', 'confidence_level', 'outcome_notes')}),
+        ('Metadata', {'fields': ('logged_at', 'started_at'), 'classes': ('collapse',)}),
     )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -61,7 +65,6 @@ class ActivityLogAdmin(admin.ModelAdmin):
             obj_id = request.resolver_match.kwargs.get('object_id')
             if obj_id:
                 try:
-                    from .models import ActivityLog
                     activity = ActivityLog.objects.get(pk=obj_id)
                     if activity.goal:
                         from apps.goals.models import Milestone
@@ -73,55 +76,30 @@ class ActivityLogAdmin(admin.ModelAdmin):
     @admin.display(description='Milestone', ordering='milestone__title')
     def milestone_link(self, obj):
         if not obj.milestone:
-            return format_html('<span style="color:var(--gp-text-muted,#888)">—</span>')
+            return format_html('<span style="color:#888">—</span>')
         status = '✓ ' if obj.milestone.is_completed else ''
-        return format_html(
-            '<span style="font-weight:600">{}{}</span>',
-            status, obj.milestone.title[:45]
-        )
+        return format_html('<span style="font-weight:600">{}{}</span>', status, obj.milestone.title[:50])
 
     @admin.display(description='Goal', ordering='goal__title')
     def goal_link(self, obj):
         if not obj.goal:
             return format_html('<span style="color:#EF4444;font-weight:600">⚠ No goal</span>')
         return format_html(
-            '<a href="/admin/goals/goal/{}/change/" style="color:var(--gp-purple,#A855F7);font-weight:600">{}</a>',
+            '<a href="/admin/goals/goal/{}/change/" style="color:#A855F7;font-weight:600">{}</a>',
             obj.goal.pk, obj.goal.title[:40]
         )
 
-    @admin.display(description='Type')
-    def type_badge(self, obj):
-        colour = TYPE_COLOURS.get(obj.activity_type, '#6B7280')
-        return format_html(
-            '<span style="background:{0}22;color:{0};padding:2px 9px;'
-            'border-radius:99px;font-size:11px;font-weight:600">{1}</span>',
-            colour, obj.get_activity_type_display()
-        )
-
-    @admin.display(description='Duration')
-    def duration_display(self, obj):
-        if not obj.duration_minutes:
-            return '—'
-        h, m = divmod(obj.duration_minutes, 60)
-        if h:
-            return format_html('<span style="font-weight:600">{}h {}m</span>', h, m)
-        return format_html('<span style="font-weight:600">{}m</span>', m)
-
-    @admin.display(description='+Progress')
-    def progress_delta_display(self, obj):
-        if not obj.goal_progress_delta:
-            return '—'
-        return format_html(
-            '<span style="color:#22C55E;font-weight:600">+{}</span>',
-            obj.goal_progress_delta
-        )
-
-    @admin.display(description='Productivity')
-    def productivity_stars(self, obj):
+    @admin.display(description='Confidence', ordering='productivity_score')
+    def confidence_display(self, obj):
         score = obj.productivity_score or 0
-        stars = '★' * score + '☆' * (5 - score)
-        colour = '#22C55E' if score >= 4 else '#EAB308' if score >= 3 else '#EF4444'
-        return format_html('<span style="color:{};letter-spacing:1px">{}</span>', colour, stars)
+        colour = CONFIDENCE_COLOURS.get(score, '#6B7280')
+        label = CONFIDENCE_LABELS.get(score, '—')
+        dots = '●' * score + '○' * (5 - score)
+        return format_html(
+            '<span style="color:{};font-weight:600;letter-spacing:2px">{}</span>'
+            '<span style="color:{};font-size:11px;margin-left:6px">{}/5 {}</span>',
+            colour, dots, colour, score, label
+        )
 
 
 @admin.register(ProductivitySnapshot)

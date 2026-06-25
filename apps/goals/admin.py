@@ -18,8 +18,7 @@ class MilestoneInline(admin.TabularInline):
 class ActivityLogInline(admin.TabularInline):
     model = ActivityLog
     extra = 0
-    fields = ('milestone', 'activity_type', 'duration_minutes', 'goal_progress_delta',
-              'productivity_score', 'started_at')
+    fields = ('milestone', 'productivity_score', 'outcome_notes', 'started_at')
     readonly_fields = ('started_at',)
     ordering = ('-started_at',)
     show_change_link = True
@@ -34,6 +33,11 @@ class ActivityLogInline(admin.TabularInline):
                 from .models import Milestone
                 kwargs['queryset'] = Milestone.objects.filter(goal_id=goal_id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        # Relabel productivity_score → confidence level via the form
+        return fields
 
 
 @admin.register(Goal)

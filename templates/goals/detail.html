@@ -105,7 +105,7 @@
 
   {# ── Log session form ── #}
   <p class="text-muted-sm mb-3" style="font-size:12px">
-    Select a milestone you worked on, then record your session details.
+    Pick the milestone you worked on and rate your confidence with it.
   </p>
   <form id="activityForm" onsubmit="logActivity(event)">
     {% csrf_token %}
@@ -122,51 +122,21 @@
       </select>
     </div>
 
-    <div class="row g-2 mb-3">
-      <div class="col-6">
-        <label class="gp-form-label">Session type</label>
-        <select name="activity_type" class="gp-form-control">
-          {% for val, label in activity_types %}
-          <option value="{{ val }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6">
-        <label class="gp-form-label">Duration (mins)</label>
-        <input type="number" name="duration_minutes" class="gp-form-control" value="30" min="1" max="720">
-      </div>
-    </div>
-
-    <div class="row g-2 mb-3">
-      <div class="col-6">
-        <label class="gp-form-label">Progress added <span class="text-muted-sm">({{ goal.success_metric }})</span></label>
-        <input type="number" name="goal_progress_delta" class="gp-form-control"
-               value="0" min="0" max="{{ goal.target_value }}" step="0.1">
-        <div class="text-muted-sm mt-1" style="font-size:11px">Current: {{ goal.current_value }}/{{ goal.target_value }}</div>
-      </div>
-      <div class="col-6">
-        <label class="gp-form-label">Productivity</label>
-        <select name="productivity_score" class="gp-form-control">
-          <option value="5">5 — Highly productive</option>
-          <option value="4">4 — Productive</option>
-          <option value="3" selected>3 — Neutral</option>
-          <option value="2">2 — Unproductive</option>
-          <option value="1">1 — Very unproductive</option>
-        </select>
-      </div>
-    </div>
-
-    {% if goal.skill %}
     <div class="mb-3">
-      <label class="gp-form-label">Skill score boost <span class="text-muted-sm">({{ goal.skill.domain.name }})</span></label>
-      <input type="number" name="skill_score_delta" class="gp-form-control" value="0" min="0" max="20" step="0.5">
-      <div class="text-muted-sm mt-1" style="font-size:11px">How much did this session improve your {{ goal.skill.domain.name }} score? (0–20)</div>
+      <label class="gp-form-label">Confidence level <span style="color:var(--gp-purple)">*</span></label>
+      <select name="confidence_level" class="gp-form-control">
+        <option value="5">5 — Very confident</option>
+        <option value="4">4 — Confident</option>
+        <option value="3" selected>3 — Getting there</option>
+        <option value="2">2 — Struggling</option>
+        <option value="1">1 — Not confident yet</option>
+      </select>
+      <div class="text-muted-sm mt-1" style="font-size:11px">How confident do you feel with this milestone after today's session?</div>
     </div>
-    {% endif %}
 
     <div class="mb-3">
       <label class="gp-form-label">Outcome notes</label>
-      <input type="text" name="outcome_notes" class="gp-form-control" placeholder="What did you achieve or learn this session?">
+      <input type="text" name="outcome_notes" class="gp-form-control" placeholder="What did you do or learn in this session?">
     </div>
 
     <button type="submit" id="activitySubmitBtn" class="btn btn-primary rounded-pill px-4">
@@ -202,20 +172,17 @@
       <div class="gp-log-dot" style="background:var(--gp-purple);flex-shrink:0;margin-top:4px"></div>
       <div style="flex:1;font-size:13px">
         <div class="fw-600">{{ log.milestone.title|default:log.title }}</div>
-        <div class="text-muted-sm">
-          {{ log.get_activity_type_display }} · {{ log.duration_minutes }} min · {{ log.started_at|date:"d M, H:i" }}
-        </div>
+        <div class="text-muted-sm">{{ log.started_at|date:"d M, H:i" }}</div>
         {% if log.outcome_notes %}
-        <div class="text-muted-sm" style="font-size:11px;font-style:italic">{{ log.outcome_notes|truncatechars:60 }}</div>
+        <div class="text-muted-sm" style="font-size:11px;font-style:italic">{{ log.outcome_notes|truncatechars:70 }}</div>
         {% endif %}
       </div>
       <div style="text-align:right;flex-shrink:0">
-        {% if log.goal_progress_delta %}
-        <div style="font-size:12px;font-weight:600;color:var(--gp-green)">+{{ log.goal_progress_delta }}</div>
-        {% endif %}
+        <div style="font-size:10px;color:var(--gp-text-muted);margin-bottom:2px">confidence</div>
         <div style="font-size:11px">
-          {% for i in "12345" %}{% if forloop.counter <= log.productivity_score %}<span style="color:var(--gp-amber)">★</span>{% else %}<span style="color:var(--gp-border)">★</span>{% endif %}{% endfor %}
+          {% for i in "12345" %}{% if forloop.counter <= log.productivity_score %}<span style="color:var(--gp-purple)">●</span>{% else %}<span style="color:var(--gp-border)">●</span>{% endif %}{% endfor %}
         </div>
+        <div style="font-size:10px;color:var(--gp-text-muted)">{{ log.productivity_score }}/5</div>
       </div>
     </div>
     {% endfor %}
@@ -353,24 +320,23 @@ function logActivity(event) {
 
     // Prepend new activity row
     var log = resp.log;
-    var stars = '';
+    var dots = '';
     for (var i = 1; i <= 5; i++) {
-      stars += i <= log.productivity_score
-        ? '<span style="color:var(--gp-amber)">★</span>'
-        : '<span style="color:var(--gp-border)">★</span>';
+      dots += i <= log.confidence_level
+        ? '<span style="color:var(--gp-purple)">●</span>'
+        : '<span style="color:var(--gp-border)">●</span>';
     }
-    var deltaHtml = log.goal_progress_delta
-      ? '<div style="font-size:12px;font-weight:600;color:var(--gp-green)">+' + log.goal_progress_delta + '</div>'
-      : '';
 
     var html = '<div class="d-flex gap-2 py-2 activity-row" style="border-bottom:1px solid var(--gp-border)">' +
       '<div class="gp-log-dot" style="background:var(--gp-purple);flex-shrink:0;margin-top:4px"></div>' +
       '<div style="flex:1;font-size:13px">' +
       '<div class="fw-600">' + log.milestone_title + '</div>' +
-      '<div class="text-muted-sm">' + log.activity_type_display + ' · ' + log.duration_minutes + ' min · ' + log.started_at + '</div>' +
+      '<div class="text-muted-sm">' + log.started_at + '</div>' +
       '</div>' +
-      '<div style="text-align:right;flex-shrink:0">' + deltaHtml +
-      '<div style="font-size:11px">' + stars + '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+      '<div style="font-size:10px;color:var(--gp-text-muted);margin-bottom:2px">confidence</div>' +
+      '<div style="font-size:11px">' + dots + '</div>' +
+      '<div style="font-size:10px;color:var(--gp-text-muted)">' + log.confidence_level + '/5</div>' +
       '</div></div>';
 
     var list = document.getElementById('activityList');
@@ -381,13 +347,10 @@ function logActivity(event) {
       header.insertAdjacentHTML('afterend', html);
     }
 
-    // Reset form (keep type/productivity)
+    // Reset form
     form.querySelector('[name="milestone_id"]').value = '';
     form.querySelector('[name="outcome_notes"]').value = '';
-    form.querySelector('[name="goal_progress_delta"]').value = '0';
-    form.querySelector('[name="duration_minutes"]').value = '30';
-    var skillDeltaField = form.querySelector('[name="skill_score_delta"]');
-    if (skillDeltaField) skillDeltaField.value = '0';
+    form.querySelector('[name="confidence_level"]').value = '3';
 
     if (resp.status === 'completed') { setTimeout(() => location.reload(), 800); }
   })

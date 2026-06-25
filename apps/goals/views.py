@@ -181,21 +181,12 @@ def goal_log_activity(request, pk):
     except Milestone.DoesNotExist:
         return JsonResponse({'error': 'Invalid milestone.'}, status=400)
 
-    activity_type = request.POST.get('activity_type', 'study')
-    duration = max(1, int(request.POST.get('duration_minutes', 30) or 30))
-    productivity = int(request.POST.get('productivity_score', 3) or 3)
-    focus = int(request.POST.get('focus_level', 3) or 3)
+    try:
+        confidence = max(1, min(5, int(request.POST.get('confidence_level', 3) or 3)))
+    except (ValueError, TypeError):
+        confidence = 3
+
     outcome = request.POST.get('outcome_notes', '')
-
-    try:
-        progress_delta = float(request.POST.get('goal_progress_delta', 0) or 0)
-    except (ValueError, TypeError):
-        progress_delta = 0.0
-
-    try:
-        skill_delta = float(request.POST.get('skill_score_delta', 0) or 0)
-    except (ValueError, TypeError):
-        skill_delta = 0.0
 
     started_at = timezone.now()
     log = ActivityLog.objects.create(
@@ -204,27 +195,12 @@ def goal_log_activity(request, pk):
         milestone=milestone,
         skill=goal.skill,
         title=milestone.title,
-        activity_type=activity_type,
-        duration_minutes=duration,
-        productivity_score=productivity,
-        focus_level=focus,
+        activity_type='other',
+        productivity_score=confidence,
         outcome_notes=outcome,
-        goal_progress_delta=progress_delta,
-        skill_score_delta=skill_delta,
         started_at=started_at,
-        ended_at=started_at + timezone.timedelta(minutes=duration),
+        ended_at=started_at,
     )
-
-    if progress_delta:
-        goal.current_value = min(goal.current_value + progress_delta, goal.target_value)
-        if goal.current_value >= goal.target_value:
-            goal.mark_completed()
-        else:
-            goal.save()
-
-    if goal.skill and skill_delta:
-        new_skill_score = min(goal.skill.current_score + skill_delta, 100)
-        goal.skill.update_score(new_skill_score)
 
     return JsonResponse({
         'success': True,
@@ -233,10 +209,7 @@ def goal_log_activity(request, pk):
         'log': {
             'id': log.pk,
             'milestone_title': milestone.title,
-            'activity_type_display': log.get_activity_type_display(),
-            'duration_minutes': log.duration_minutes,
-            'productivity_score': log.productivity_score,
-            'goal_progress_delta': log.goal_progress_delta,
+            'confidence_level': log.productivity_score,
             'started_at': log.started_at.strftime('%d %b, %H:%M'),
         },
     })
