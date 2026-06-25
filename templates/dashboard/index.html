@@ -56,24 +56,30 @@
   </div>
   <div class="col-6">
     <div class="gp-stat">
-      <div class="gp-stat-label"><i class="ti ti-brain" style="font-size:12px"></i> Skills</div>
-      <div class="gp-stat-value" style="color:var(--gp-purple)">{{ skills_count }}</div>
-      <div class="gp-stat-sub">being tracked</div>
+      <div class="gp-stat-label"><i class="ti ti-checks" style="font-size:12px"></i> Milestones</div>
+      <div class="gp-stat-value" style="color:var(--gp-purple)">{{ milestones_done }}</div>
+      <div class="gp-stat-sub">completed</div>
     </div>
   </div>
 </div>
 
-<!-- Skills radar -->
-{% if skills %}
+<!-- AI growth coach -->
 <div class="gp-card mb-3">
-  <div class="gp-card-title"><i class="ti ti-chart-radar"></i> Skills overview
-    <a href="{% url 'skills:list' %}" style="font-size:11px;color:var(--gp-purple);text-decoration:none;margin-left:auto">View all →</a>
+  <div class="d-flex align-items-center mb-2">
+    <div class="gp-card-title mb-0"><i class="ti ti-message-chatbot"></i> Growth Coach</div>
+    <span style="font-size:11px;color:var(--gp-text-muted);margin-left:auto">Powered by AI</span>
   </div>
-  <div style="position:relative;height:220px;max-width:320px;margin:0 auto">
-    <canvas id="radarChart"></canvas>
+  <p style="font-size:12px;color:var(--gp-text-muted);margin-bottom:12px">Ask anything about your goals, habits, or progress.</p>
+  <div id="dashChatMessages" style="max-height:280px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column"></div>
+  <div class="d-flex gap-2">
+    <input type="text" id="dashChatInput" class="gp-form-control"
+           placeholder="e.g. How do I stay consistent?"
+           onkeydown="if(event.key==='Enter'){sendDashChat()}" style="flex:1">
+    <button onclick="sendDashChat()" id="dashChatBtn" class="btn btn-primary rounded-pill px-3">
+      <i class="ti ti-send"></i>
+    </button>
   </div>
 </div>
-{% endif %}
 
 <!-- Trend chart -->
 {% if trend_data %}
@@ -156,7 +162,74 @@
 {% endblock %}
 
 {% block extra_js %}
+<style>
+.dash-bubble {
+  max-width: 88%; padding: 10px 13px; border-radius: 14px;
+  font-size: 13px; line-height: 1.5; margin-bottom: 8px; word-break: break-word;
+}
+.dash-user {
+  background: var(--gp-purple); color: #fff;
+  margin-left: auto; border-bottom-right-radius: 4px;
+}
+.dash-ai {
+  background: var(--gp-surface-2); color: var(--gp-text);
+  border: 1px solid var(--gp-border); border-bottom-left-radius: 4px;
+}
+.dash-typing {
+  background: var(--gp-surface-2); border: 1px solid var(--gp-border);
+  border-bottom-left-radius: 4px; color: var(--gp-text-muted);
+  font-size: 20px; letter-spacing: 3px; padding: 6px 14px;
+}
+</style>
 <script>
+var DASH_CSRF = '{{ csrf_token }}';
+
+function sendDashChat() {
+  var input = document.getElementById('dashChatInput');
+  var box = document.getElementById('dashChatMessages');
+  var btn = document.getElementById('dashChatBtn');
+  var text = input.value.trim();
+  if (!text) return;
+
+  var userBubble = document.createElement('div');
+  userBubble.className = 'dash-bubble dash-user';
+  userBubble.textContent = text;
+  box.appendChild(userBubble);
+  input.value = '';
+  btn.disabled = true;
+
+  var typing = document.createElement('div');
+  typing.className = 'dash-bubble dash-typing';
+  typing.textContent = '···';
+  box.appendChild(typing);
+  box.scrollTop = box.scrollHeight;
+
+  fetch('{% url "goals:dashboard_chat" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': DASH_CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'message=' + encodeURIComponent(text),
+  })
+  .then(r => r.json())
+  .then(function(data) {
+    typing.remove();
+    btn.disabled = false;
+    var aiBubble = document.createElement('div');
+    aiBubble.className = 'dash-bubble dash-ai';
+    aiBubble.textContent = data.response || 'Sorry, could not get a response.';
+    box.appendChild(aiBubble);
+    box.scrollTop = box.scrollHeight;
+  })
+  .catch(function() {
+    typing.remove();
+    btn.disabled = false;
+    var errBubble = document.createElement('div');
+    errBubble.className = 'dash-bubble dash-ai';
+    errBubble.textContent = 'Something went wrong. Please try again.';
+    box.appendChild(errBubble);
+    box.scrollTop = box.scrollHeight;
+  });
+}
+
 // ── PGI doughnut ──────────────────────────────────────────────────────────────
 (function() {
   var score = {{ pgi_score }};
@@ -177,56 +250,6 @@
     }
   });
 })();
-
-// ── Radar chart ───────────────────────────────────────────────────────────────
-{% if skills %}
-(function() {
-  var labels  = {{ radar_labels|safe }};
-  var current = {{ radar_current|safe }};
-  var target  = {{ radar_target|safe }};
-  var isDark  = document.documentElement.getAttribute('data-theme') !== 'light';
-  var gridCol = isDark ? 'rgba(42,42,61,0.9)' : 'rgba(228,223,255,0.9)';
-  var tickCol = isDark ? '#6B7280' : '#9CA3AF';
-  new Chart(document.getElementById('radarChart'), {
-    type: 'radar',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Current',
-          data: current,
-          borderColor: '#A855F7',
-          backgroundColor: 'rgba(168,85,247,0.15)',
-          pointBackgroundColor: '#A855F7',
-          borderWidth: 2,
-        },
-        {
-          label: 'Target',
-          data: target,
-          borderColor: 'rgba(168,85,247,0.35)',
-          backgroundColor: 'transparent',
-          borderDash: [4,4],
-          pointBackgroundColor: 'rgba(168,85,247,0.35)',
-          borderWidth: 1.5,
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: tickCol, font: { size: 11 } } } },
-      scales: {
-        r: {
-          min: 0, max: 100,
-          grid: { color: gridCol },
-          angleLines: { color: gridCol },
-          ticks: { display: false },
-          pointLabels: { color: tickCol, font: { size: 10 } },
-        }
-      }
-    }
-  });
-})();
-{% endif %}
 
 // ── Trend line ────────────────────────────────────────────────────────────────
 {% if trend_data %}

@@ -16,7 +16,6 @@ from .forms import GoalForm, MilestoneForm
 from .utils import compute_pgi
 from .roadmap import RoadmapGenerator
 from apps.activities.models import ActivityLog, ProductivitySnapshot
-from apps.skills.models import UserSkill
 from apps.priorities.engine import PriorityEngine
 from apps.recommendations.engine import RecommendationEngine
 from apps.recommendations.models import Recommendation as RecommendationRecord
@@ -65,12 +64,8 @@ def dashboard(request):
     # ── AI recommendation (top 1 for dashboard teaser) ───────────────────────
     top_rec = user.recommendations.filter(is_read=False).order_by('rank').first()
 
-    # ── Skills overview + radar data ─────────────────────────────────────────
-    skills = UserSkill.objects.filter(user=user, is_active=True).select_related('domain')[:8]
-    skills_count = skills.count()
-    radar_labels = [s.domain.name for s in skills]
-    radar_current = [s.current_score for s in skills]
-    radar_target = [s.target_score for s in skills]
+    # ── Milestones done (replaces skills stat) ────────────────────────────────
+    milestones_done = Milestone.objects.filter(goal__user=user, is_completed=True).count()
 
     # ── PGI ──────────────────────────────────────────────────────────────────
     pgi_score = compute_pgi(user)
@@ -86,18 +81,14 @@ def dashboard(request):
         'active_goals_count': goal_stats['count'] or 0,
         'on_track_count': on_track,
         'hours_logged': hours_logged,
-        'skills_count': skills_count,
+        'milestones_done': milestones_done,
         'streak_days': user.streak_days,
         'trend_labels': trend_labels,
         'trend_data': trend_data,
         'top_priorities': top_priorities,
         'top_rec': top_rec,
-        'skills': skills,
         'today': today,
         'pgi_score': pgi_score,
-        'radar_labels': json.dumps(radar_labels),
-        'radar_current': json.dumps(radar_current),
-        'radar_target': json.dumps(radar_target),
         'heatmap_data': json.dumps(heatmap_data),
         'heatmap_start': heatmap_start,
     }
@@ -338,6 +329,46 @@ Your role:
     reply = GroqClient().chat(system_prompt, user_message)
     if not reply:
         return JsonResponse({'response': "Sorry, I couldn't reach the AI right now. Please try again in a moment."})
+
+    return JsonResponse({'response': reply})
+
+
+@login_required
+def dashboard_chat(request):
+    """AJAX endpoint — general-purpose AI growth coach on the dashboard."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    user_message = request.POST.get('message', '').strip()
+    if not user_message:
+        return JsonResponse({'error': 'Message is required.'}, status=400)
+
+    active_goals = Goal.objects.filter(user=request.user, status='active').prefetch_related('milestones')
+    goal_lines = '\n'.join(
+        f'  • {g.title} — {g.progress_percentage:.0f}% done, due {g.target_date}'
+        for g in active_goals
+    ) or '  (No active goals yet)'
+
+    system_prompt = f"""You are a supportive personal growth coach for a student using the GrowthPath app.
+
+Student: {request.user.display_name}
+Active goals:
+{goal_lines}
+
+Your role:
+- Give practical, encouraging, specific advice on goals, study habits, and productivity
+- If they mention a specific goal or milestone, reference their actual data
+- Keep responses concise (3–5 sentences max) and actionable
+- Be warm and direct — like a knowledgeable friend, not a corporate bot"""
+
+    from django.conf import settings
+    if not getattr(settings, 'GROQ_API_KEY', None):
+        return JsonResponse({'response': "The AI assistant isn't configured yet. Ask your admin to add a GROQ_API_KEY."})
+
+    from .ai_client import GroqClient
+    reply = GroqClient().chat(system_prompt, user_message)
+    if not reply:
+        return JsonResponse({'response': "Sorry, I couldn't reach the AI right now. Please try again."})
 
     return JsonResponse({'response': reply})
 
