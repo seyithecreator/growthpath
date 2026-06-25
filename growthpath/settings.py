@@ -18,10 +18,14 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
 
-# Allow Railway domains automatically
+# Allow Railway/Render domains automatically
 _railway_domain = config('RAILWAY_PUBLIC_DOMAIN', default='')
 if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_railway_domain)
+
+_render_domain = config('RENDER_EXTERNAL_HOSTNAME', default='')
+if _render_domain and _render_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_domain)
 
 CSRF_TRUSTED_ORIGINS = [
     f'https://{_railway_domain}' for _railway_domain in ALLOWED_HOSTS
@@ -162,19 +166,13 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ─── Cache / Celery ──────────────────────────────────────────────────────────
+# ─── Cache ───────────────────────────────────────────────────────────────────
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
-
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
 
 # ─── Jazzmin Admin Theme ─────────────────────────────────────────────────────
 
